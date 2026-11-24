@@ -101,7 +101,7 @@
   }
 
   // ---- adaptive difficulty ----------------------------------------------
-  // Three right in a row moves the level up, two misses in a row moves it
+  // Four right in a row moves the level up, two misses in a row moves it
   // down. No settings screen; the kid never has to choose.
   function deckState(deck) {
     var s = load();
