@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grown-up page — Kids Games</title>
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+<div class="bar">
+  <a class="back" href="index.html" aria-label="Back">‹</a>
+  <span class="title">Grown-up page</span>
+</div>
+
+<div class="wrap">
+  <p style="color:var(--ink-soft);font-size:15px;margin:14px 0">
+    Saved on this device only. Nothing is sent anywhere.
+  </p>
+
+  <div id="decks"></div>
+
+  <div id="empty" class="card hidden">
+    <h2>No practice yet</h2>
+    <p>Play a game and this page fills in.</p>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 30px">
+    <button class="big-btn ghost" id="exportBtn" style="font-size:15px;min-height:auto;padding:12px 18px">Copy progress as JSON</button>
+    <button class="big-btn ghost" id="resetBtn" style="font-size:15px;min-height:auto;padding:12px 18px;color:var(--bad)">Reset all progress</button>
+  </div>
+</div>
+
+<script src="shared/learn.js"></script>
+<script src="shared/words.js"></script>
+<script>
+(function () {
+  var LABELS = { spell: 'Speak & Build (spelling)' };
+  // count against the whole curriculum, not just the words already in the store
+  var POOLS = { spell: function () { return Words.allWords(); } };
+  var poolFor = function (d) { return POOLS[d] ? POOLS[d]() : null; };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+
+  function render() {
+    var host = document.getElementById('decks');
+    var decks = Learn.decks().filter(function (d) {
+      return Learn.stats(d, poolFor(d)).total > 0;
+    });
+    host.innerHTML = '';
+    document.getElementById('empty').classList.toggle('hidden', decks.length > 0);
+
+    decks.forEach(function (deck) {
+      var s = Learn.stats(deck, poolFor(deck));
+      var st = Learn.deckState(deck);
+      var pct = s.total ? Math.round((s.mastered / s.total) * 100) : 0;
+
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.style.marginBottom = '16px';
+
+      var tricky = s.tricky.slice(0, 8).map(function (t) {
+        return '<span style="display:inline-block;background:var(--bad-soft);color:var(--bad);' +
+          'font-weight:800;border-radius:10px;padding:6px 12px;margin:4px 6px 0 0">' +
+          esc(t.item) + ' <b style="opacity:.6">×' + t.wrong + '</b></span>';
+      }).join('') || '<span style="color:var(--ink-soft)">nothing stuck yet</span>';
+
+      card.innerHTML =
+        '<h2>' + esc(LABELS[deck] || deck) + '</h2>' +
+        '<p>Level ' + st.level + ' · ' + st.answered + ' answered · ' +
+          (st.answered ? Math.round((st.correct / st.answered) * 100) : 0) + '% right</p>' +
+        '<div class="stat-row">' +
+          '<div class="stat"><b>' + s.mastered + '</b><span>mastered</span></div>' +
+          '<div class="stat"><b>' + s.learning + '</b><span>learning</span></div>' +
+          '<div class="stat"><b>' + s.fresh + '</b><span>not started</span></div>' +
+          '<div class="stat"><b>' + pct + '%</b><span>of deck</span></div>' +
+        '</div>' +
+        '<p style="margin:10px 0 0"><b style="color:var(--ink)">Needs practice</b><br>' + tricky + '</p>';
+
+      host.appendChild(card);
+    });
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var text = JSON.stringify(Learn.load(), null, 2);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        this.textContent = 'Copied';
+      }.bind(this));
+    } else {
+      window.prompt('Copy this:', text);
+    }
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    if (window.confirm('Reset all progress on this device? This cannot be undone.')) {
+      Learn.reset();
+      render();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdf6ee">
+<title>Speak &amp; Build — spell what you hear</title>
+<link rel="stylesheet" href="../../shared/style.css">
+</head>
+<body>
+
+<div class="bar">
+  <a class="back" href="../../index.html" aria-label="Back to games">‹</a>
+  <span class="title">Speak &amp; Build</span>
+  <span class="badge" id="levelBadge">Level 1</span>
+</div>
+
+<div class="wrap">
+
+  <div class="dots" id="dots"></div>
+
+  <!-- start gate: guarantees the first tap that unlocks iOS speech -->
+  <div id="gate" class="card" style="margin-top:24px;text-align:center">
+    <h2>Spell what you hear</h2>
+    <p id="gateNote">Tap the orange button to hear a word. Tap the letters in order.</p>
+    <button class="big-btn primary" id="startBtn" style="width:100%;margin-top:10px">Start</button>
+  </div>
+
+  <main id="game" class="hidden">
+    <div class="say-row">
+      <button class="say-btn" id="sayBtn" aria-label="Hear the word again">🔊</button>
+    </div>
+    <div class="say-note" id="sayNote">tap to hear it again</div>
+
+    <div class="slots" id="slots"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="tiles" id="tiles"></div>
+
+    <div style="text-align:center;padding:14px 0">
+      <button class="big-btn ghost" id="hintBtn" style="font-size:16px;padding:10px 18px;min-height:auto">Show first letter</button>
+    </div>
+  </main>
+
+  <div id="summary" class="card hidden" style="margin-top:24px;text-align:center">
+    <h2 id="sumTitle">Nice work</h2>
+    <p id="sumSub"></p>
+    <div class="stat-row">
+      <div class="stat"><b id="sumRight">0</b><span>right</span></div>
+      <div class="stat"><b id="sumNew">0</b><span>new words</span></div>
+      <div class="stat"><b id="sumMiss">0</b><span>to practice</span></div>
+    </div>
+    <button class="big-btn primary" id="againBtn" style="width:100%">Play again</button>
+    <p style="margin-top:16px"><a href="../../index.html">Back to the games</a></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../shared/learn.js"></script>
+<script src="../../shared/speech.js"></script>
+<script src="../../shared/words.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var DECK = 'spell';
+  var LIMIT = 12;
+  var ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  var MAX_LEVEL = Words.levelCount;
+
+  var el = function (id) { return document.getElementById(id); };
+  var state = {
+    session: null,
+    word: '',
+    answer: [],
+    retry: [],
+    recent: [],
+    locked: true,
+    hintUsed: false,
+    levelMoves: 0,
+    tiles: []
+  };
+
+  function toast(msg) {
+    var t = el('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.classList.remove('show'); }, 1600);
+  }
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function renderDots() {
+    var box = el('dots');
+    box.innerHTML = '';
+    for (var i = 0; i < LIMIT; i++) {
+      var d = document.createElement('i');
+      var r = state.session && state.session.results ? state.session.results[i] : null;
+      if (r === true) d.className = 'good';
+      else if (r === false) d.className = 'bad';
+      box.appendChild(d);
+    }
+  }
+
+  function updateBadge() {
+    el('levelBadge').textContent = 'Level ' + Learn.level(DECK) + ' · ' + Words.level(Learn.level(DECK)).name;
+  }
+
+  // ---- build one word -----------------------------------------------------
+  function nextWord() {
+    var pool = Words.pool(Learn.level(DECK));
+    var word;
+
+    if (state.retry.length) {
+      word = state.retry.shift();
+    } else {
+      word = Learn.pick(DECK, pool, state.recent.slice(-3));
+    }
+    if (!word) { word = pool[0]; }
+
+    state.word = word;
+    state.answer = [];
+    state.locked = false;
+    state.hintUsed = false;
+
+    state.recent.push(word);
+    if (state.recent.length > 6) state.recent.shift();
+
+    // slots
+    var slots = el('slots');
+    slots.innerHTML = '';
+    for (var i = 0; i < word.length; i++) {
+      var s = document.createElement('div');
+      s.className = 'slot';
+      slots.appendChild(s);
+    }
+
+    // tiles: the word's own letters (duplicates included) plus two distractors
+    var letters = word.split('');
+    var spare = ALPHABET.filter(function (c) { return word.indexOf(c) === -1; });
+    letters = letters.concat(shuffle(spare).slice(0, 2));
+    shuffle(letters);
+
+    state.tiles = letters;
+    var tileBox = el('tiles');
+    tileBox.innerHTML = '';
+    letters.forEach(function (ch, idx) {
+      var b = document.createElement('button');
+      b.className = 'tile';
+      b.textContent = ch;
+      b.dataset.idx = idx;
+      b.addEventListener('click', function () { tapTile(b, ch); });
+      tileBox.appendChild(b);
+    });
+
+    el('feedback').textContent = '';
+    el('feedback').className = 'feedback';
+    el('hintBtn').disabled = false;
+    el('hintBtn').classList.remove('hidden');
+
+    Speak.say(word, { rate: 0.82 });
+    updateBadge();
+  }
+
+  function tapTile(btn, ch) {
+    if (state.locked || state.answer.length >= state.word.length) return;
+    btn.classList.add('used');
+    state.answer.push({ ch: ch, btn: btn });
+    paintSlots();
+    if (state.answer.length === state.word.length) check();
+  }
+
+  function paintSlots() {
+    var slots = el('slots').children;
+    for (var i = 0; i < slots.length; i++) {
+      var cell = state.answer[i];
+      slots[i].textContent = cell ? cell.ch : '';
+      slots[i].className = 'slot' + (cell ? ' filled' : '');
+    }
+  }
+
+  function clearAnswer() {
+    state.answer.forEach(function (a) { a.btn.classList.remove('used'); });
+    state.answer = [];
+    paintSlots();
+  }
+
+  // ---- scoring ------------------------------------------------------------
+  function check() {
+    state.locked = true;
+    var guess = state.answer.map(function (a) { return a.ch; }).join('');
+    var word = state.word;
+    var wasNew = Learn.get(DECK, word).seen === 0;
+
+    if (guess === word) {
+      Learn.record(DECK, word, true);
+      var up = Learn.adapt(DECK, true, MAX_LEVEL, { allowUp: state.levelMoves === 0 });
+      state.session.track(word, true, wasNew);
+      Array.prototype.forEach.call(el('slots').children, function (s) {
+        s.classList.add('good', 'pop');
+      });
+      el('feedback').textContent = 'Yes! ' + word;
+      el('feedback').className = 'feedback good';
+      Speak.say(word, { rate: 0.8 });
+      if (up.changed) state.levelMoves += 1;
+      if (up.changed > 0) toast('Level up! ' + Words.level(up.level).name);
+      renderDots();
+      setTimeout(finishTurn, 1150);
+    } else {
+      Learn.record(DECK, word, false);
+      var down = Learn.adapt(DECK, false, MAX_LEVEL, { allowDown: state.levelMoves === 0 });
+      state.session.track(word, false, wasNew);
+      el('slots').classList.add('shake');
+      Array.prototype.forEach.call(el('slots').children, function (s) {
+        s.classList.add('bad');
+      });
+      el('feedback').textContent = 'It is spelled ' + word;
+      el('feedback').className = 'feedback bad';
+
+      // show the right answer in the slots
+      var cells = el('slots').children;
+      for (var i = 0; i < cells.length; i++) {
+        cells[i].textContent = word[i];
+        cells[i].className = 'slot bad';
+      }
+      if (state.retry.indexOf(word) === -1) state.retry.push(word);
+      if (down.changed) state.levelMoves += 1;
+      if (down.changed < 0) toast('Back to ' + Words.level(down.level).name);
+      renderDots();
+      setTimeout(finishTurn, 2100);
+    }
+  }
+
+  function finishTurn() {
+    el('slots').classList.remove('shake');
+    if (state.session.done()) { showSummary(); return; }
+    nextWord();
+  }
+
+  // ---- session ------------------------------------------------------------
+  function showSummary() {
+    var s = state.session;
+    el('game').classList.add('hidden');
+    el('dots').classList.add('hidden');
+    el('summary').classList.remove('hidden');
+
+    var pct = s.answered ? Math.round((s.correct / s.answered) * 100) : 0;
+    el('sumTitle').textContent = pct >= 80 ? 'Excellent' : pct >= 50 ? 'Good work' : 'Good try';
+    el('sumSub').textContent = s.missed.length
+      ? 'Words to practice again: ' + s.missed.join(', ')
+      : 'You got every word. Level ' + Learn.level(DECK) + ' next time.';
+    el('sumRight').textContent = s.correct;
+    el('sumNew').textContent = s.newItems.length;
+    el('sumMiss').textContent = s.missed.length;
+  }
+
+  function startSession() {
+    state.session = new Learn.Session({ limit: LIMIT });
+    state.session.results = [];
+    state.retry = [];
+    state.recent = [];
+    state.levelMoves = 0;
+    // record results for the dots
+    var track = state.session.track.bind(state.session);
+    state.session.track = function (item, correct, wasNew) {
+      state.session.results[state.session.answered] = correct;
+      track(item, correct, wasNew);
+    };
+
+    el('gate').classList.add('hidden');
+    el('summary').classList.add('hidden');
+    el('game').classList.remove('hidden');
+    el('dots').classList.remove('hidden');
+    renderDots();
+    nextWord();
+  }
+
+  // ---- wiring -------------------------------------------------------------
+  el('startBtn').addEventListener('click', function () {
+    Speak.unlock();
+    startSession();
+  });
+
+  el('againBtn').addEventListener('click', function () {
+    Speak.unlock();
+    startSession();
+  });
+
+  el('sayBtn').addEventListener('click', function () {
+    if (state.word) Speak.say(state.word, { rate: 0.82 });
+  });
+
+  el('hintBtn').addEventListener('click', function () {
+    if (state.locked || state.hintUsed || !state.word) return;
+    state.hintUsed = true;
+    el('hintBtn').disabled = true;
+    var first = state.word[0];
+    // use a matching unused tile
+    for (var i = 0; i < state.tiles.length; i++) {
+      var btn = el('tiles').children[i];
+      if (state.tiles[i] === first && btn && !btn.classList.contains('used')) {
+        tapTile(btn, first);
+        break;
+      }
+    }
+  });
+
+  // typing works too, for a keyboard or a Chromebook
+  document.addEventListener('keydown', function (e) {
+    if (state.locked || !state.word) return;
+    var ch = (e.key || '').toLowerCase();
+    if (ch.length !== 1 || ch < 'a' || ch > 'z') return;
+    var tiles = el('tiles').children;
+    for (var i = 0; i < tiles.length; i++) {
+      if (state.tiles[i] === ch && !tiles[i].classList.contains('used')) {
+        tapTile(tiles[i], ch);
+        return;
+      }
+    }
+  });
+
+  renderDots();
+  updateBadge();
+
+  // no voices at all (rare, but a locked-down browser does it): say so instead
+  // of letting the kid sit there with silent buttons
+  setTimeout(function () {
+    if (!Speak.hasVoice()) {
+      el('gateNote').textContent =
+        'This browser has no speech voices, so the words cannot be read aloud. Try Safari or Chrome.';
+      el('startBtn').disabled = true;
+    }
+  }, 900);
+})();
+</script>
+</body>
+</html>

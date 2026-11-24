@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdf6ee">
+<title>Kids Games</title>
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+<div class="bar">
+  <span class="title">Kids Games</span>
+  <span class="badge" id="progressBadge">—</span>
+</div>
+
+<div class="wrap">
+  <p style="color:var(--ink-soft);font-size:15px;margin:14px 0 4px">
+    Reading, spelling and numbers. No ads, no accounts, no timer.
+  </p>
+
+  <div class="hub-grid">
+    <a class="game-card" href="games/speak-build/index.html">
+      <span class="emoji">🔤</span>
+      <span class="name">Speak &amp; Build</span>
+      <span class="sub">Hear a word, tap the letters. Spelling.</span>
+    </a>
+
+    <div class="game-card soon">
+      <span class="emoji">👂</span>
+      <span class="name">Sight Word Splat</span>
+      <span class="sub">Find the word you hear. Coming next.</span>
+    </div>
+
+    <div class="game-card soon">
+      <span class="emoji">🎵</span>
+      <span class="name">Rhyme &amp; Swap</span>
+      <span class="sub">Cat to hat to bat. Coming next.</span>
+    </div>
+
+    <div class="game-card soon">
+      <span class="emoji">🔟</span>
+      <span class="name">Ten-Frame Fill</span>
+      <span class="sub">How many more make ten. Coming next.</span>
+    </div>
+
+    <div class="game-card soon">
+      <span class="emoji">➕</span>
+      <span class="name">Fact Frenzy</span>
+      <span class="sub">Add and subtract to 20. Coming next.</span>
+    </div>
+
+    <div class="game-card soon">
+      <span class="emoji">▦</span>
+      <span class="name">Array Builder</span>
+      <span class="sub">See multiplication as a grid. Coming next.</span>
+    </div>
+  </div>
+
+  <p style="margin-top:auto;font-size:13px;color:var(--ink-soft);padding:12px 0">
+    <a href="grown-up.html">Grown-up page</a> · progress is saved on this device only.
+  </p>
+</div>
+
+<script src="shared/learn.js"></script>
+<script>
+(function () {
+  var decks = Learn.decks();
+  var total = 0, mastered = 0;
+  decks.forEach(function (d) {
+    var s = Learn.stats(d, null);
+    total += s.total;
+    mastered += s.mastered;
+  });
+  document.getElementById('progressBadge').textContent =
+    total ? mastered + ' of ' + total + ' mastered' : 'nothing yet';
+})();
+</script>
+</body>
+</html>
