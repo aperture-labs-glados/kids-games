@@ -48,6 +48,12 @@
     return s.items[k];
   }
 
+  // Read-only lookup: never creates an entry, for code that just inspects.
+  var EMPTY = { d: '', i: '', box: 0, right: 0, wrong: 0, seen: 0, due: 0, last: 0 };
+  function peek(deck, item) {
+    return load().items[keyOf(deck, item)] || EMPTY;
+  }
+
   function get(deck, item) { return entry(deck, item); }
 
   // Record one attempt. Returns the updated entry.
@@ -78,7 +84,10 @@
     if (!remaining.length) remaining = pool.slice();
 
     var t = now();
-    var list = remaining.map(function (i) { return entry(deck, i); });
+    var list = remaining.map(function (i) {
+      var e = peek(deck, i);
+      return { i: i, seen: e.seen, due: e.due };
+    });
 
     var due = list.filter(function (e) { return e.seen > 0 && e.due <= t; })
       .sort(function (a, b) { return a.due - b.due; });
@@ -153,7 +162,7 @@
 
     var out = { mastered: 0, learning: 0, fresh: 0, total: items.length, tricky: [] };
     items.forEach(function (i) {
-      var e = entry(deck, i);
+      var e = peek(deck, i);
       if (e.seen === 0) out.fresh += 1;
       else if (e.box >= MASTER_BOX) out.mastered += 1;
       else out.learning += 1;
@@ -200,6 +209,7 @@
     load: load,
     save: save,
     get: get,
+    peek: peek,
     record: record,
     pick: pick,
     level: level,
