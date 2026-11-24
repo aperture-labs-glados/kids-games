@@ -54,3 +54,11 @@ dead buttons.
 
 Pushed to the `main` branch, GitHub Pages serves the repo root. `.nojekyll` keeps
 Jekyll from eating files that start with an underscore.
+
+Pages caches assets for 10 minutes, so bump the `?v=` on the `shared/` links when
+you change a shared file, or a browser will keep running the old engine.
+
+## Testing
+
+`dev/` holds jsdom playthroughs that drive the real game headlessly. See
+`dev/README.md`.
