@@ -65,14 +65,14 @@
 <script>
 (function () {
   var decks = Learn.decks();
-  var total = 0, mastered = 0;
+  var practiced = 0, mastered = 0;
   decks.forEach(function (d) {
     var s = Learn.stats(d, null);
-    total += s.total;
+    practiced += s.mastered + s.learning;
     mastered += s.mastered;
   });
   document.getElementById('progressBadge').textContent =
-    total ? mastered + ' of ' + total + ' mastered' : 'nothing yet';
+    practiced ? mastered + ' mastered · ' + practiced + ' practiced' : 'nothing yet';
 })();
 </script>
 </body>
