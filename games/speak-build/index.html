@@ -59,7 +59,7 @@
 <script src="../../shared/learn.js?v=2"></script>
 <script src="../../shared/speech.js?v=3"></script>
 <script src="../../shared/words.js?v=2"></script>
-<script src="../../shared/confetti.js?v=2"></script>
+<script src="../../shared/confetti.js?v=4"></script>
 <script>
 (function () {
   'use strict';
@@ -210,7 +210,7 @@
       });
       el('feedback').textContent = 'Yes! ' + word;
       el('feedback').className = 'feedback good';
-      Confetti.burstFrom(el('slots'), 70);
+      Confetti.burstFrom(el('slots'), 85);
       Speak.word(word);
       if (up.changed) state.levelMoves += 1;
       if (up.changed > 0) toast('Level up! ' + Words.level(up.level).name);

@@ -48,16 +48,17 @@
   }
 
   function spawn(x, y, count) {
+    // wider fan so the burst reads as a burst on a narrow phone screen
     for (var i = 0; i < count; i++) {
       var angle = (-Math.PI / 2) + (Math.random() - 0.5) * 2.1;
       var speed = 5 + Math.random() * 8;
       parts.push({
-        x: x + (Math.random() - 0.5) * 40,
-        y: y + (Math.random() - 0.5) * 14,
+        x: x + (Math.random() - 0.5) * 60,
+        y: y + (Math.random() - 0.5) * 26,
         vx: Math.cos(angle) * speed * (0.55 + Math.random() * 0.7),
         vy: Math.sin(angle) * speed,
-        w: 5 + Math.random() * 6,
-        h: 8 + Math.random() * 8,
+        w: 7 + Math.random() * 8,
+        h: 11 + Math.random() * 10,
         rot: Math.random() * Math.PI,
         vr: (Math.random() - 0.5) * 0.3,
         color: COLORS[(Math.random() * COLORS.length) | 0],
@@ -119,7 +120,7 @@
     if (!ensure()) return false;
     var x = typeof o.x === 'number' ? o.x : (global.innerWidth || 800) / 2;
     var y = typeof o.y === 'number' ? o.y : (global.innerHeight || 600) * 0.42;
-    spawn(x, y, o.count || 70);
+    spawn(x, y, o.count || 85);
     if (!raf) raf = global.requestAnimationFrame(draw);
     return true;
   }
