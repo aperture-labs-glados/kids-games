@@ -65,8 +65,14 @@
   }
 
   // ---- recorded words -----------------------------------------------------
+  // Bump AUDIO_VERSION whenever the clips are re-recorded: Pages caches assets
+  // for ten minutes, and a voice swap at the same URL would otherwise sit
+  // behind the old files.
+  var AUDIO_VERSION = 2;
+
   function urlFor(w) {
-    return base + 'audio/words/' + encodeURIComponent(String(w).toLowerCase()) + '.mp3';
+    return base + 'audio/words/' + encodeURIComponent(String(w).toLowerCase()) +
+      '.mp3?v=' + AUDIO_VERSION;
   }
 
   function element(url) {
