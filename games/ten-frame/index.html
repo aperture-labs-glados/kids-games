@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdf6ee">
+<title>Ten-Frame Fill — how many more?</title>
+<link rel="stylesheet" href="../../shared/style.css?v=3">
+</head>
+<body>
+
+<div class="bar">
+  <a class="back" href="../../index.html" aria-label="Back to games">‹</a>
+  <span class="title">Ten-Frame Fill</span>
+  <span class="badge" id="levelBadge">Make 10</span>
+</div>
+
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+
+  <div id="gate" class="card" style="margin-top:24px;text-align:center">
+    <h2>How many more to make ten?</h2>
+    <p>Count the empty boxes, then tap the number.</p>
+    <button class="big-btn primary" id="startBtn" style="width:100%;margin-top:10px">Start</button>
+  </div>
+
+  <main id="game" class="hidden">
+    <div class="say-row">
+      <button class="say-btn" id="sayBtn" aria-label="Hear the question again">🔊</button>
+    </div>
+    <div class="say-note" id="sayNote">tap to hear it again</div>
+
+    <div class="prompt" id="prompt">How many more to make 10?</div>
+    <div class="frames" id="frames"></div>
+
+    <div class="feedback" id="feedback"></div>
+    <div class="choices numbers" id="choices"></div>
+  </main>
+
+  <div id="summary" class="card hidden" style="margin-top:24px;text-align:center">
+    <h2 id="sumTitle">Nice work</h2>
+    <p id="sumSub"></p>
+    <div class="stat-row">
+      <div class="stat"><b id="sumRight">0</b><span>right</span></div>
+      <div class="stat"><b id="sumNew">0</b><span>new</span></div>
+      <div class="stat"><b id="sumMiss">0</b><span>to practice</span></div>
+    </div>
+    <button class="big-btn primary" id="againBtn" style="width:100%">Play again</button>
+    <p style="margin-top:16px"><a href="../../index.html">Back to the games</a></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../shared/learn.js?v=3"></script>
+<script src="../../shared/speech.js?v=5"></script>
+<script src="../../shared/decks.js?v=3"></script>
+<script src="../../shared/confetti.js?v=5"></script>
+<script>
+(function () {
+  'use strict';
+
+  var DECK = 'tenframe';
+  var LIMIT = 12;
+  var MAX_LEVEL = Decks.tenframe.maxLevel;
+
+  var el = function (id) { return document.getElementById(id); };
+  var state = {
+    session: null,
+    item: null,
+    answer: 0,
+    locked: true,
+    levelMoves: 0,
+    retry: [],
+    recent: []
+  };
+
+  function toast(msg) {
+    var t = el('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.classList.remove('show'); }, 1600);
+  }
+
+  function renderDots() {
+    var box = el('dots');
+    box.innerHTML = '';
+    for (var i = 0; i < LIMIT; i++) {
+      var d = document.createElement('i');
+      var r = state.session && state.session.results ? state.session.results[i] : null;
+      if (r === true) d.className = 'good';
+      else if (r === false) d.className = 'bad';
+      box.appendChild(d);
+    }
+  }
+
+  function updateBadge() {
+    var lv = Learn.level(DECK);
+    el('levelBadge').textContent = 'Make ' + Decks.tenframe.targetFor(lv);
+  }
+
+  function phraseFor(target) {
+    return target === 20 ? 'make-twenty' : 'make-ten';
+  }
+
+  // ---- one question -------------------------------------------------------
+  function nextItem() {
+    var level = Learn.level(DECK);
+    var pool = Decks.tenframe.pool(level);
+    var id;
+
+    if (state.retry.length) {
+      id = state.retry.shift();
+    } else {
+      id = Learn.pick(DECK, pool, state.recent.slice(-2));
+    }
+    if (!id) id = pool[0];
+
+    var q = Decks.tenframe.parse(id);
+    state.item = id;
+    state.answer = q.answer;
+    state.locked = false;
+
+    state.recent.push(id);
+    if (state.recent.length > 4) state.recent.shift();
+
+    el('prompt').textContent = 'How many more to make ' + q.target + '?';
+    el('feedback').textContent = '';
+    el('feedback').className = 'feedback';
+
+    drawFrames(q, false);
+    drawChoices(q);
+    updateBadge();
+
+    Speak.phrase(phraseFor(q.target));
+  }
+
+  function drawFrames(q, reveal) {
+    var host = el('frames');
+    host.innerHTML = '';
+    var frames = q.target === 20 ? 2 : 1;
+
+    for (var f = 0; f < frames; f++) {
+      var frame = document.createElement('div');
+      frame.className = 'frame';
+      for (var i = 0; i < 10; i++) {
+        var cell = document.createElement('div');
+        var index = f * 10 + i;
+        cell.className = 'cell';
+        if (index < q.shown) {
+          cell.className = 'cell on';
+        } else if (reveal) {
+          // the answer, shown only after the child has tried
+          cell.className = 'cell on added';
+        }
+        frame.appendChild(cell);
+      }
+      host.appendChild(frame);
+    }
+  }
+
+  function drawChoices(q) {
+    var host = el('choices');
+    host.innerHTML = '';
+    for (var n = 0; n <= 10; n++) {
+      (function (n) {
+        var b = document.createElement('button');
+        b.className = 'choice';
+        b.textContent = n;
+        b.addEventListener('click', function () { answerWith(b, n); });
+        host.appendChild(b);
+      })(n);
+    }
+  }
+
+  // ---- scoring ------------------------------------------------------------
+  function answerWith(btn, n) {
+    if (state.locked || !state.item) return;
+    state.locked = true;
+
+    var q = Decks.tenframe.parse(state.item);
+    var wasNew = Learn.get(DECK, state.item).seen === 0;
+    var right = (n === state.answer);
+
+    Learn.record(DECK, state.item, right);
+    var move = Learn.adapt(DECK, right, MAX_LEVEL, {
+      allowUp: state.levelMoves === 0,
+      allowDown: state.levelMoves === 0
+    });
+    if (move.changed) state.levelMoves += 1;
+    state.session.track(state.item, right, wasNew);
+
+    if (right) {
+      btn.classList.add('good', 'pop');
+      drawFrames(q, true);
+      el('feedback').textContent = q.shown + ' and ' + q.answer + ' make ' + q.target;
+      el('feedback').className = 'feedback good';
+      Confetti.burstFrom(el('frames'), 85);
+      Speak.phrase('yes');
+      if (move.changed > 0) toast('Now make ' + Decks.tenframe.targetFor(move.level));
+    } else {
+      btn.classList.add('bad');
+      Array.prototype.forEach.call(el('choices').children, function (b) {
+        if (+b.textContent === q.answer) b.classList.add('good');
+      });
+      drawFrames(q, true);
+      el('feedback').textContent = 'It is ' + q.answer + '. ' + q.shown + ' and ' + q.answer + ' make ' + q.target;
+      el('feedback').className = 'feedback bad';
+      Speak.phrase('try-again');
+      if (state.retry.indexOf(state.item) === -1) state.retry.push(state.item);
+      if (move.changed < 0) toast('Back to make ' + Decks.tenframe.targetFor(move.level));
+    }
+
+    Array.prototype.forEach.call(el('choices').children, function (b) { b.disabled = true; });
+    renderDots();
+    setTimeout(finishTurn, right ? 1300 : 2400);
+  }
+
+  function finishTurn() {
+    if (state.session.done()) { showSummary(); return; }
+    nextItem();
+  }
+
+  // ---- session ------------------------------------------------------------
+  function showSummary() {
+    var s = state.session;
+    el('game').classList.add('hidden');
+    el('dots').classList.add('hidden');
+    el('summary').classList.remove('hidden');
+
+    var pct = s.answered ? Math.round((s.correct / s.answered) * 100) : 0;
+    el('sumTitle').textContent = pct >= 80 ? 'Excellent' : pct >= 50 ? 'Good work' : 'Good try';
+    el('sumSub').textContent = s.missed.length
+      ? 'These need another look: ' + s.missed.length + ' question' + (s.missed.length > 1 ? 's' : '')
+      : 'Every one right. Well done.';
+    el('sumRight').textContent = s.correct;
+    el('sumNew').textContent = s.newItems.length;
+    el('sumMiss').textContent = s.missed.length;
+  }
+
+  function startSession() {
+    state.session = new Learn.Session({ limit: LIMIT });
+    state.session.results = [];
+    state.retry = [];
+    state.recent = [];
+    state.levelMoves = 0;
+
+    var track = state.session.track.bind(state.session);
+    state.session.track = function (item, correct, wasNew) {
+      state.session.results[state.session.answered] = correct;
+      track(item, correct, wasNew);
+    };
+
+    el('gate').classList.add('hidden');
+    el('summary').classList.add('hidden');
+    el('game').classList.remove('hidden');
+    el('dots').classList.remove('hidden');
+    renderDots();
+    nextItem();
+  }
+
+  // ---- wiring -------------------------------------------------------------
+  el('startBtn').addEventListener('click', function () {
+    Speak.unlock();
+    startSession();
+  });
+
+  el('againBtn').addEventListener('click', function () {
+    Speak.unlock();
+    startSession();
+  });
+
+  el('sayBtn').addEventListener('click', function () {
+    if (!state.item) return;
+    var q = Decks.tenframe.parse(state.item);
+    Speak.phrase(phraseFor(q.target));
+  });
+
+  renderDots();
+  updateBadge();
+})();
+</script>
+</body>
+</html>

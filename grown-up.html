@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grown-up page — Kids Games</title>
-<link rel="stylesheet" href="shared/style.css?v=2">
+<link rel="stylesheet" href="shared/style.css?v=3">
 </head>
 <body>
 <div class="bar">
@@ -30,14 +30,36 @@
   </div>
 </div>
 
-<script src="shared/learn.js?v=2"></script>
-<script src="shared/words.js?v=2"></script>
+<script src="shared/learn.js?v=3"></script>
+<script src="shared/words.js?v=3"></script>
+<script src="shared/decks.js?v=3"></script>
 <script>
 (function () {
-  var LABELS = { spell: 'Speak & Build (spelling)' };
-  // count against the whole curriculum, not just the words already in the store
-  var POOLS = { spell: function () { return Words.allWords(); } };
+  var LABELS = {
+    spell: 'Speak & Build (spelling)',
+    tenframe: 'Ten-Frame Fill (making ten and twenty)',
+    facts: 'Fact Frenzy (add and subtract)'
+  };
+  // count against the whole curriculum, not just the items already in the store
+  var POOLS = {
+    spell: function () { return Words.allWords(); },
+    tenframe: function () { return Decks.tenframe.all(); },
+    facts: function () { return Decks.facts.all(); }
+  };
   var poolFor = function (d) { return POOLS[d] ? POOLS[d]() : null; };
+
+  // raw item ids are ugly ("t10:7", "6+_=10"); show them the way a parent reads them
+  function labelFor(deck, item) {
+    if (deck === 'tenframe') {
+      var q = Decks.tenframe.parse(item);
+      return q.shown + ' + ? = ' + q.target;
+    }
+    if (deck === 'facts') {
+      var f = Decks.facts.parse(item);
+      return f ? f.text.replace('?', f.answer) : item;
+    }
+    return item;
+  }
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -65,7 +87,7 @@
       var tricky = s.tricky.slice(0, 8).map(function (t) {
         return '<span style="display:inline-block;background:var(--bad-soft);color:var(--bad);' +
           'font-weight:800;border-radius:10px;padding:6px 12px;margin:4px 6px 0 0">' +
-          esc(t.item) + ' <b style="opacity:.6">×' + t.wrong + '</b></span>';
+          esc(labelFor(deck, t.item)) + ' <b style="opacity:.6">×' + t.wrong + '</b></span>';
       }).join('') || '<span style="color:var(--ink-soft)">nothing stuck yet</span>';
 
       card.innerHTML =

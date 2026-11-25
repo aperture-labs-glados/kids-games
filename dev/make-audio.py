@@ -22,10 +22,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WORDS_JS = ROOT / "shared" / "words.js"
 OUT = ROOT / "shared" / "audio" / "words"
+PHRASE_OUT = ROOT / "shared" / "audio" / "phrases"
 
 # A single isolated word needs a natural voice, not an exaggerated one.
-DEFAULT_VOICE = "en-US-AriaNeural"
+DEFAULT_VOICE = "en-US-AnaNeural"
 RATE = "-10%"
+
+# Fixed lines the maths games speak, so a pre-reader knows what is being asked.
+PHRASES = {
+    "make-ten": "How many more to make ten?",
+    "make-twenty": "How many more to make twenty?",
+    "how-many": "How many?",
+    "yes": "Yes! Well done.",
+    "try-again": "Not quite. Try again.",
+}
 
 # trim both ends, keep a beat of lead-in so the first phoneme is not clipped
 FILTER = (
@@ -58,12 +68,12 @@ def words_from_js(path):
     return out
 
 
-async def synth(word, voice, tmpdir, sem):
+async def synth(text, voice, tmpdir, sem, out_dir, name):
     import edge_tts
-    raw = Path(tmpdir) / f"{word}.raw.mp3"
-    final = OUT / f"{word}.mp3"
+    raw = Path(tmpdir) / f"{name}.raw.mp3"
+    final = Path(out_dir) / f"{name}.mp3"
     async with sem:
-        comm = edge_tts.Communicate(word, voice, rate=RATE)
+        comm = edge_tts.Communicate(text, voice, rate=RATE)
         await comm.save(str(raw))
     proc = subprocess.run(
         ["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-af", FILTER,
@@ -73,7 +83,7 @@ async def synth(word, voice, tmpdir, sem):
     )
     raw.unlink(missing_ok=True)
     if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg failed for {word}: {proc.stderr.strip()[:200]}")
+        raise RuntimeError(f"ffmpeg failed for {name}: {proc.stderr.strip()[:200]}")
     return final.stat().st_size
 
 
@@ -99,11 +109,24 @@ async def main():
     with tempfile.TemporaryDirectory() as td:
         async def one(w):
             try:
-                sizes.append(await synth(w, args.voice, td, sem))
+                sizes.append(await synth(w, args.voice, td, sem, OUT, w))
             except Exception as e:  # noqa: BLE001 - report and carry on
                 failed.append((w, str(e)[:120]))
 
         await asyncio.gather(*(one(w) for w in todo))
+
+        # fixed phrases for the maths games
+        PHRASE_OUT.mkdir(parents=True, exist_ok=True)
+        lines = list(PHRASES.items())
+        if args.limit:
+            lines = lines[:1]
+        async def one_phrase(pair):
+            try:
+                sizes.append(await synth(pair[1], args.voice, td, sem, PHRASE_OUT, pair[0]))
+            except Exception as e:  # noqa: BLE001
+                failed.append((pair[0], str(e)[:120]))
+
+        await asyncio.gather(*(one_phrase(kv) for kv in lines))
 
     meta = {
         "voice": args.voice,

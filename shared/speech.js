@@ -101,10 +101,10 @@
   // trying to avoid. A generation counter drops any superseded attempt.
   var generation = 0;
 
-  function playFile(w, onFail) {
+  function playUrl(url, onFail) {
     if (!global.Audio) return false;
     var a;
-    try { a = element(urlFor(w)); } catch (e) { return false; }
+    try { a = element(url); } catch (e) { return false; }
 
     var mine = ++generation;
     var settled = false;
@@ -130,6 +130,13 @@
     }
     if (p && p.catch) p.catch(fail);
     return true;
+  }
+
+  function playFile(w, onFail) { return playUrl(urlFor(w), onFail); }
+
+  // A fixed spoken line, e.g. "how many more to make ten".
+  function phrase(name, onFail) {
+    return playUrl(base + 'audio/phrases/' + encodeURIComponent(name) + '.mp3?v=' + AUDIO_VERSION, onFail);
   }
 
   function hasRecording(w) { return !!audio[urlFor(w)]; }
@@ -201,6 +208,7 @@
     unlock: unlock,
     say: say,
     word: word,
+    phrase: phrase,
     spell: spell,
     cancel: cancel,
     preload: preload,
