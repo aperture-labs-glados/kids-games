@@ -340,7 +340,7 @@ main { margin: auto 0; }
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1px;
+  gap: 0;
   margin: 4px 0 6px;
   padding: 6px 2px 0;
   border-bottom: 3px solid var(--line);
@@ -370,8 +370,15 @@ main { margin: auto 0; }
 }
 .tick.start i { background: var(--blue); height: 24px; }
 .tick.start span { color: var(--blue); }
-.tick.on i { background: var(--accent); }
-.tick.end i { background: var(--accent); height: 26px; }
+/* the travelled span is a band, not a row of hairlines */
+.tick.on i {
+  background: var(--accent);
+  width: 100%;
+  border-radius: 2px;
+}
+.tick.start i { width: 4px; height: 26px; }
+.tick.end i { width: 4px; height: 28px; background: var(--accent); }
+.tick.end span { color: var(--accent); }
 .tick.end::after {
   content: '';
   position: absolute;

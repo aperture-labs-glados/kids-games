@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Kids Games">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Number Line — hop back to take away</title>
-<link rel="stylesheet" href="../../shared/style.css?v=6">
+<link rel="stylesheet" href="../../shared/style.css?v=7">
 </head>
 <body>
 
@@ -161,7 +161,9 @@
       var dot = document.createElement('i');
       t.appendChild(dot);
       var num = document.createElement('span');
-      num.textContent = (n % 5 === 0) ? n : '';
+      // multiples of five normally, plus wherever the trip starts and ends:
+      // a child should be able to read the two numbers that matter
+      num.textContent = (n % 5 === 0 || n === start || (travelled && n === end)) ? n : '';
       t.appendChild(num);
       host.appendChild(t);
     }
@@ -210,8 +212,8 @@
       drawLine(q.a, q.answer, true);
       el('equation').textContent = q.text.replace('?', q.answer);
       el('feedback').textContent = q.kind === 'sub'
-        ? 'Start at ' + q.a + ', back ' + q.b + ', land on ' + q.answer
-        : 'Start at ' + q.a + ', forward ' + q.b + ', land on ' + q.answer;
+        ? q.b + ' back from ' + q.a + ' is ' + q.answer
+        : q.b + ' on from ' + q.a + ' is ' + q.answer;
       el('feedback').className = 'feedback good';
       Sound.fanfare();
       Confetti.rain(95);
