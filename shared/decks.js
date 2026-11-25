@@ -82,9 +82,61 @@
     return null;
   }
 
-  function union(fn) {
+  // ---- sight words --------------------------------------------------------
+  // The word itself is the item. Two levels: Dolch primer, then first grade.
+  function sightPool(level) {
+    var W = global.Words || {};
+    var list = level >= 2 ? (W.sight && W.sight.first) : (W.sight && W.sight.primer);
+    return (list || []).slice();
+  }
+
+  // ---- rhyming families ---------------------------------------------------
+  // Item "at>hat": the rime stays, the first letter changes. Any other word in
+  // the same family works as the one you start from.
+  var RHYME_LEVELS = [
+    ['at', 'an', 'ap'],
+    ['ig', 'in', 'it', 'og'],
+    ['op', 'ot', 'ug', 'un', 'ut']
+  ];
+
+  function rhymePool(level) {
+    var fams = RHYME_LEVELS[Math.min(Math.max(level, 1), RHYME_LEVELS.length) - 1];
+    var all = (global.Words && global.Words.families) || {};
+    var out = [];
+    fams.forEach(function (f) {
+      (all[f] || []).forEach(function (w) { out.push(f + '>' + w); });
+    });
+    return out;
+  }
+
+  function parseRhyme(id) {
+    var p = String(id).split('>');
+    var word = p[1] || '';
+    return { rime: p[0] || '', word: word, answer: word.charAt(0) };
+  }
+
+  // ---- multiplication arrays ---------------------------------------------
+  var ARRAY_TABLES = [[2, 5, 10], [3, 4], [6, 7], [8, 9]];
+
+  function arrayPool(level) {
+    var tables = ARRAY_TABLES[Math.min(Math.max(level, 1), ARRAY_TABLES.length) - 1];
+    var out = [];
+    tables.forEach(function (t) {
+      for (var n = 1; n <= 10; n++) out.push(t + 'x' + n);
+    });
+    return out;
+  }
+
+  function parseArray(id) {
+    var m = /^(\d+)x(\d+)$/.exec(String(id));
+    if (!m) return null;
+    var a = +m[1], b = +m[2];
+    return { rows: a, cols: b, answer: a * b, text: a + ' × ' + b + ' = ?' };
+  }
+
+  function union(fn, maxLevel) {
     var seen = {}, out = [];
-    for (var lv = 1; lv <= 5; lv++) {
+    for (var lv = 1; lv <= (maxLevel || 5); lv++) {
       fn(lv).forEach(function (i) {
         if (!seen[i]) { seen[i] = true; out.push(i); }
       });
@@ -109,8 +161,29 @@
       label: 'Fact Frenzy',
       maxLevel: 5,
       pool: function (level) { return factPool(level); },
-      all: function () { return union(factPool); },
+      all: function () { return union(factPool, 5); },
       parse: parseFact
+    },
+    sight: {
+      label: 'Sight Word Splat',
+      maxLevel: 2,
+      pool: sightPool,
+      all: function () { return sightPool(1).concat(sightPool(2)); },
+      parse: function (id) { return { word: String(id) }; }
+    },
+    rhyme: {
+      label: 'Rhyme & Swap',
+      maxLevel: RHYME_LEVELS.length,
+      pool: rhymePool,
+      all: function () { return union(rhymePool, RHYME_LEVELS.length); },
+      parse: parseRhyme
+    },
+    arrays: {
+      label: 'Array Builder',
+      maxLevel: ARRAY_TABLES.length,
+      pool: arrayPool,
+      all: function () { return union(arrayPool, ARRAY_TABLES.length); },
+      parse: parseArray
     },
     TEN_LIMIT: TEN_LIMIT
   };

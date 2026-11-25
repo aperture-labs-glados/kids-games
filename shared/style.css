@@ -270,6 +270,71 @@ main { margin: auto 0; }
   .choice { min-height: 62px; }
 }
 
+/* ---- sight words ---- */
+.word-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 8px 0 4px;
+}
+.word-tile {
+  min-height: 72px;
+  font-size: 26px;
+  font-weight: 800;
+  border-radius: 16px;
+  background: var(--card);
+  border: 2px solid var(--line);
+  box-shadow: 0 3px 0 var(--line);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+.word-tile.long { font-size: 21px; }
+.word-tile.good { border-color: var(--good); background: var(--good-soft); color: var(--good); }
+.word-tile.bad { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.word-tile:disabled { opacity: 0.55; }
+
+/* ---- rhyme & swap ---- */
+.slot.blank {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: var(--accent-soft);
+}
+.slot.given {
+  border-style: solid;
+  border-color: var(--line);
+  color: var(--ink-soft);
+  background: var(--bg);
+}
+.choices.rhyme { grid-template-columns: repeat(4, 1fr); }
+.choice.letter {
+  min-height: 74px;
+  font-size: 34px;
+  text-transform: lowercase;
+}
+
+/* ---- arrays ---- */
+.array {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  margin: 6px 0 8px;
+}
+.arr-row { display: flex; gap: 4px; }
+.arr-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: block;
+}
+
+@media (max-width: 420px) {
+  .word-tile { min-height: 64px; font-size: 23px; }
+  .word-tile.long { font-size: 19px; }
+  .arr-dot { width: 11px; height: 11px; }
+}
+
 /* ---- confetti ---- */
 .confetti-canvas {
   position: fixed;

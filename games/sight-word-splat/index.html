@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdf6ee">
+<title>Sight Word Splat — find the word you hear</title>
+<link rel="stylesheet" href="../../shared/style.css?v=4">
+</head>
+<body>
+
+<div class="bar">
+  <a class="back" href="../../index.html" aria-label="Back to games">‹</a>
+  <span class="title">Sight Word Splat</span>
+  <span class="badge" id="levelBadge">Primer</span>
+</div>
+
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+
+  <div id="gate" class="card" style="margin-top:24px;text-align:center">
+    <h2>Find the word you hear</h2>
+    <p>Listen, then tap the matching word.</p>
+    <button class="big-btn primary" id="startBtn" style="width:100%;margin-top:10px">Start</button>
+  </div>
+
+  <main id="game" class="hidden">
+    <div class="say-row">
+      <button class="say-btn" id="sayBtn" aria-label="Hear the word again">🔊</button>
+    </div>
+    <div class="say-note">tap to hear it again</div>
+
+    <div class="feedback" id="feedback"></div>
+    <div class="word-grid" id="words"></div>
+  </main>
+
+  <div id="summary" class="card hidden" style="margin-top:24px;text-align:center">
+    <h2 id="sumTitle">Nice work</h2>
+    <p id="sumSub"></p>
+    <div class="stat-row">
+      <div class="stat"><b id="sumRight">0</b><span>right</span></div>
+      <div class="stat"><b id="sumNew">0</b><span>new words</span></div>
+      <div class="stat"><b id="sumMiss">0</b><span>to practice</span></div>
+    </div>
+    <button class="big-btn primary" id="againBtn" style="width:100%">Play again</button>
+    <p style="margin-top:16px"><a href="../../index.html">Back to the games</a></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../shared/learn.js?v=4"></script>
+<script src="../../shared/speech.js?v=6"></script>
+<script src="../../shared/words.js?v=3"></script>
+<script src="../../shared/decks.js?v=4"></script>
+<script src="../../shared/confetti.js?v=8"></script>
+<script src="../../shared/sound.js?v=2"></script>
+<script>
+(function () {
+  'use strict';
+
+  var DECK = 'sight';
+  var LIMIT = 12;
+  var MAX_LEVEL = Decks.sight.maxLevel;
+  var LEVEL_NAMES = ['', 'Primer', 'First grade'];
+  var ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
+
+  var el = function (id) { return document.getElementById(id); };
+  var state = {
+    session: null,
+    word: '',
+    locked: true,
+    levelMoves: 0,
+    retry: [],
+    recent: []
+  };
+
+  function toast(msg) {
+    var t = el('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.classList.remove('show'); }, 1600);
+  }
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function renderDots() {
+    var box = el('dots');
+    box.innerHTML = '';
+    for (var i = 0; i < LIMIT; i++) {
+      var d = document.createElement('i');
+      var r = state.session && state.session.results ? state.session.results[i] : null;
+      if (r === true) d.className = 'good';
+      else if (r === false) d.className = 'bad';
+      box.appendChild(d);
+    }
+  }
+
+  function updateBadge() {
+    el('levelBadge').textContent = LEVEL_NAMES[Learn.level(DECK)] || 'Primer';
+  }
+
+  // Five wrong words, preferring the same length so the choice is about the
+  // word, not about picking the only short one.
+  function distractors(pool, word, n) {
+    var sameLen = pool.filter(function (w) { return w !== word && w.length === word.length; });
+    var others = pool.filter(function (w) { return w !== word && w.length !== word.length; });
+    var picks = shuffle(sameLen.slice()).slice(0, n);
+    if (picks.length < n) {
+      picks = picks.concat(shuffle(others.slice()).slice(0, n - picks.length));
+    }
+    return picks;
+  }
+
+  function nextItem() {
+    var pool = Decks.sight.pool(Learn.level(DECK));
+    var word;
+
+    if (state.retry.length) {
+      word = state.retry.shift();
+    } else {
+      word = Learn.pick(DECK, pool, state.recent.slice(-3));
+    }
+    if (!word) word = pool[0];
+
+    state.word = word;
+    state.locked = false;
+
+    state.recent.push(word);
+    if (state.recent.length > 5) state.recent.shift();
+
+    el('feedback').textContent = '';
+    el('feedback').className = 'feedback';
+
+    var tiles = shuffle([word].concat(distractors(pool, word, 5)));
+    var host = el('words');
+    host.innerHTML = '';
+    tiles.forEach(function (w) {
+      var b = document.createElement('button');
+      b.className = 'word-tile';
+      if (w.length > 5) b.classList.add('long');
+      b.textContent = w;
+      b.addEventListener('click', function () { answerWith(b, w); });
+      host.appendChild(b);
+    });
+
+    Speak.preload([word]);
+    Speak.word(word);
+    updateBadge();
+  }
+
+  function answerWith(btn, w) {
+    if (state.locked || !state.word) return;
+    state.locked = true;
+
+    var right = (w === state.word);
+    var wasNew = Learn.get(DECK, state.word).seen === 0;
+
+    Learn.record(DECK, state.word, right);
+    var move = Learn.adapt(DECK, right, MAX_LEVEL, {
+      allowUp: state.levelMoves === 0,
+      allowDown: state.levelMoves === 0
+    });
+    if (move.changed) state.levelMoves += 1;
+    state.session.track(state.word, right, wasNew);
+
+    if (right) {
+      btn.classList.add('good', 'pop');
+      el('feedback').textContent = 'Yes! ' + state.word;
+      el('feedback').className = 'feedback good';
+      Sound.fanfare();
+      Confetti.rain(95);
+      if (move.changed > 0) toast('Now: ' + (LEVEL_NAMES[move.level] || ''));
+    } else {
+      btn.classList.add('bad');
+      Array.prototype.forEach.call(el('words').children, function (b) {
+        if (b.textContent === state.word) b.classList.add('good');
+        b.disabled = true;
+      });
+      el('feedback').textContent = 'That word is ' + state.word;
+      el('feedback').className = 'feedback bad';
+      Speak.word(state.word);
+      if (state.retry.indexOf(state.word) === -1) state.retry.push(state.word);
+      if (move.changed < 0) toast('Back to ' + (LEVEL_NAMES[move.level] || ''));
+    }
+
+    Array.prototype.forEach.call(el('words').children, function (b) { b.disabled = true; });
+    renderDots();
+    setTimeout(finishTurn, right ? 1500 : 2400);
+  }
+
+  function finishTurn() {
+    if (state.session.done()) { showSummary(); return; }
+    nextItem();
+  }
+
+  function showSummary() {
+    var s = state.session;
+    el('game').classList.add('hidden');
+    el('dots').classList.add('hidden');
+    el('summary').classList.remove('hidden');
+
+    var pct = s.answered ? Math.round((s.correct / s.answered) * 100) : 0;
+    el('sumTitle').textContent = pct >= 80 ? 'Excellent' : pct >= 50 ? 'Good work' : 'Good try';
+    el('sumSub').textContent = s.missed.length
+      ? 'Words to look at again: ' + s.missed.slice(0, 6).join(', ')
+      : 'Every word right. Well done.';
+    el('sumRight').textContent = s.correct;
+    el('sumNew').textContent = s.newItems.length;
+    el('sumMiss').textContent = s.missed.length;
+  }
+
+  function startSession() {
+    state.session = new Learn.Session({ limit: LIMIT });
+    state.session.results = [];
+    state.retry = [];
+    state.recent = [];
+    state.levelMoves = 0;
+
+    var track = state.session.track.bind(state.session);
+    state.session.track = function (item, correct, wasNew) {
+      state.session.results[state.session.answered] = correct;
+      track(item, correct, wasNew);
+    };
+
+    el('gate').classList.add('hidden');
+    el('summary').classList.add('hidden');
+    el('game').classList.remove('hidden');
+    el('dots').classList.remove('hidden');
+    renderDots();
+    nextItem();
+  }
+
+  el('startBtn').addEventListener('click', function () {
+    Speak.unlock();
+    Sound.unlock();
+    startSession();
+  });
+
+  el('againBtn').addEventListener('click', function () {
+    Speak.unlock();
+    Sound.unlock();
+    startSession();
+  });
+
+  el('sayBtn').addEventListener('click', function () {
+    if (state.word) Speak.word(state.word);
+  });
+
+  renderDots();
+  updateBadge();
+})();
+</script>
+</body>
+</html>

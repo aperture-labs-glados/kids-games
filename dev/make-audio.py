@@ -60,6 +60,11 @@ def words_from_js(path):
     for block in re.findall(r"(?:primer|first):\s*\[(.*?)\]", src, re.S):
         found += re.findall(r"'([a-z]+)'", block)
 
+    # rhyming family words; the two-letter rime keys are skipped by the {3,}
+    fam = re.search(r"FAMILIES\s*=\s*\{(.*?)\n  \};", src, re.S)
+    if fam:
+        found += re.findall(r"'([a-z]{3,})'", fam.group(1))
+
     seen, out = set(), []
     for w in found:
         if w not in seen:

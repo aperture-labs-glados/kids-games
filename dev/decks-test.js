@@ -1,7 +1,15 @@
 // Unit checks on the deck data: every pool parses, every answer is reachable,
 // nothing repeats. No DOM needed.
+require('/opt/data/kids-games/shared/words.js');
 require('/opt/data/kids-games/shared/decks.js');
 const D = globalThis.Decks;
+const W = globalThis.Words;
+const fs = require('fs');
+const CLIPS = new Set(
+  fs.readdirSync('/opt/data/kids-games/shared/audio/words')
+    .filter(f => f.endsWith('.mp3'))
+    .map(f => f.replace('.mp3', ''))
+);
 
 let fails = 0;
 const bad = (msg) => { fails++; console.log('  FAIL', msg); };
@@ -61,6 +69,49 @@ for (let level = 1; level <= 5; level++) {
 }
 console.log('  questions that cannot make four choices:', thin);
 if (thin) bad(thin + ' questions cannot fill the answer grid');
+
+console.log('sight words');
+[[1, 50], [2, 40]].forEach(([level, count]) => {
+  const pool = D.sight.pool(level);
+  console.log(`  level ${level}: ${pool.length} words`);
+  if (pool.length !== count) bad(`level ${level} should hold ${count} words, has ${pool.length}`);
+  const missing = pool.filter(w => !CLIPS.has(w));
+  if (missing.length) bad(`level ${level} has words with no recording: ${missing.join(',')}`);
+});
+
+console.log('rhyme & swap');
+for (let level = 1; level <= D.rhyme.maxLevel; level++) {
+  const pool = D.rhyme.pool(level);
+  const seen = new Set();
+  pool.forEach(id => {
+    if (seen.has(id)) bad(`rhyme level ${level} duplicate ${id}`);
+    seen.add(id);
+    const q = D.rhyme.parse(id);
+    if (!q.word || q.word.length !== 3) bad(`${id} is not a three-letter word`);
+    if (!q.word.endsWith(q.rime)) bad(`${id} does not end with its rime`);
+    if (q.answer !== q.word.charAt(0)) bad(`${id} answer is not the first letter`);
+    const family = (W.families[q.rime] || []);
+    if (family.indexOf(q.word) === -1) bad(`${id} is not in the ${q.rime} family`);
+    if (!CLIPS.has(q.word)) bad(`${id} has no recording for "${q.word}"`);
+  });
+  console.log(`  set ${level}: ${pool.length} swaps across ${new Set(pool.map(i => D.rhyme.parse(i).rime)).size} families`);
+  if (!pool.length) bad('rhyme set ' + level + ' is empty');
+}
+
+console.log('array builder');
+for (let level = 1; level <= D.arrays.maxLevel; level++) {
+  const pool = D.arrays.pool(level);
+  pool.forEach(id => {
+    const q = D.arrays.parse(id);
+    if (!q) return bad(`unparseable ${id}`);
+    if (q.rows * q.cols !== q.answer) bad(`${id} wrong product`);
+    if (!q.text.includes('?')) bad(`${id} has no blank`);
+    if (q.rows < 2 || q.rows > 10 || q.cols < 1 || q.cols > 10) bad(`${id} out of range`);
+  });
+  console.log(`  level ${level}: ${pool.length} arrays, largest answer ` +
+    Math.max(...pool.map(i => D.arrays.parse(i).answer)));
+  if (!pool.length) bad('array level ' + level + ' is empty');
+}
 
 console.log('decks.all()');
 console.log('  tenframe:', D.tenframe.all().length, 'facts:', D.facts.all().length);

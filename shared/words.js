@@ -57,7 +57,26 @@
       'round', 'some', 'stop', 'take', 'thank', 'them', 'then', 'think', 'walk', 'were']
   };
 
+  // Rhyming families: every word is three letters, so swapping the first
+  // letter is a real change and the rime stays readable.
+  var FAMILIES = {
+    at: ['cat', 'hat', 'bat', 'mat', 'sat', 'rat', 'pat'],
+    an: ['can', 'man', 'pan', 'fan', 'ran', 'van'],
+    ap: ['cap', 'map', 'nap', 'tap', 'gap', 'lap'],
+    ig: ['big', 'dig', 'fig', 'pig', 'wig'],
+    in: ['bin', 'fin', 'pin', 'tin', 'win'],
+    it: ['bit', 'fit', 'hit', 'pit', 'sit'],
+    og: ['dog', 'log', 'fog', 'hog', 'jog'],
+    op: ['hop', 'mop', 'top', 'pop', 'cop'],
+    ot: ['cot', 'dot', 'hot', 'lot', 'pot', 'rot'],
+    ug: ['bug', 'dug', 'hug', 'jug', 'mug', 'rug', 'tug'],
+    un: ['bun', 'fun', 'run', 'sun', 'gun'],
+    ut: ['but', 'cut', 'hut', 'nut', 'put', 'rut']
+  };
+
   global.Words = {
+    families: FAMILIES,
+    familyNames: Object.keys(FAMILIES),
     levels: LEVELS,
     levelCount: LEVELS.length,
     level: function (n) {

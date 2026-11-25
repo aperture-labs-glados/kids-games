@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grown-up page — Kids Games</title>
-<link rel="stylesheet" href="shared/style.css?v=3">
+<link rel="stylesheet" href="shared/style.css?v=4">
 </head>
 <body>
 <div class="bar">
@@ -38,13 +38,19 @@
   var LABELS = {
     spell: 'Speak & Build (spelling)',
     tenframe: 'Ten-Frame Fill (making ten and twenty)',
-    facts: 'Fact Frenzy (add and subtract)'
+    facts: 'Fact Frenzy (add and subtract)',
+    sight: 'Sight Word Splat (reading)',
+    rhyme: 'Rhyme & Swap (word families)',
+    arrays: 'Array Builder (times tables)'
   };
   // count against the whole curriculum, not just the items already in the store
   var POOLS = {
     spell: function () { return Words.allWords(); },
     tenframe: function () { return Decks.tenframe.all(); },
-    facts: function () { return Decks.facts.all(); }
+    facts: function () { return Decks.facts.all(); },
+    sight: function () { return Decks.sight.all(); },
+    rhyme: function () { return Decks.rhyme.all(); },
+    arrays: function () { return Decks.arrays.all(); }
   };
   var poolFor = function (d) { return POOLS[d] ? POOLS[d]() : null; };
 
@@ -57,6 +63,14 @@
     if (deck === 'facts') {
       var f = Decks.facts.parse(item);
       return f ? f.text.replace('?', f.answer) : item;
+    }
+    if (deck === 'rhyme') {
+      var r = Decks.rhyme.parse(item);
+      return r.word;
+    }
+    if (deck === 'arrays') {
+      var a = Decks.arrays.parse(item);
+      return a ? a.text.replace('?', a.answer) : item;
     }
     return item;
   }
