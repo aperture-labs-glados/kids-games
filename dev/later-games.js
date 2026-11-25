@@ -11,6 +11,8 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
 
 function stubs(window) {
   window.__spoken = [];
+  window.localStorage.setItem('kg.players', JSON.stringify([{ id: 'p1', name: 'Test', emoji: '🐣' }]));
+  window.localStorage.setItem('kg.active', 'p1');
   window.__osc = 0;
   const voices = [{ name: 'Test Voice', lang: 'en-US', localService: true }];
   window.speechSynthesis = {
@@ -139,7 +141,7 @@ async function rhymeSwap() {
   await sleep(150);
   check('slot filled on success', doc.querySelectorAll('.slots .slot')[0].textContent === answer);
   check('fanfare played', w.__osc === 5, String(w.__osc));
-  const store = JSON.parse(w.localStorage.getItem('kg.progress.v1') || '{"items":{}}');
+  const store = JSON.parse(w.localStorage.getItem('kg.v2.p1') || '{"items":{}}');
   check('the swap was recorded', Object.keys(store.items).some(k => k.indexOf('rhyme::') === 0));
   await sleep(1800);
 

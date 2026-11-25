@@ -1,12 +1,19 @@
 /* learn.js — shared mastery engine.
  * Every game calls this so a word practiced in one game counts in another.
  * Model: Leitner boxes per item. Correct -> box up, wrong -> back to box 1.
+ *
+ * Progress is stored per player. Two children on one iPad must not inherit each
+ * other's level, so every profile gets its own bucket and the active profile id
+ * lives in its own key.
+ *
  * Nothing here talks to a network: progress is localStorage only.
  */
 (function (global) {
   'use strict';
 
-  var KEY = 'kg.progress.v1';
+  var OLD_KEY = 'kg.progress.v1';   // single-user layout, migrated on first run
+  var PLAYERS_KEY = 'kg.players';
+  var ACTIVE_KEY = 'kg.active';
   var MASTER_BOX = 4;
   // Rest period per box, in ms. Box 1 is short so a missed item returns
   // inside the same session; box 4 is "mastered", a few days off.
@@ -16,22 +23,109 @@
 
   function now() { return Date.now(); }
 
+  // ---- players ------------------------------------------------------------
+  function readJSON(key, fallback) {
+    try {
+      var v = JSON.parse(global.localStorage.getItem(key));
+      return v === null || v === undefined ? fallback : v;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function players() {
+    var list = readJSON(PLAYERS_KEY, []);
+    return Array.isArray(list) ? list : [];
+  }
+
+  function savePlayers(list) {
+    try { global.localStorage.setItem(PLAYERS_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+
+  function player(id) {
+    var list = players();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  function activeId() {
+    try { return global.localStorage.getItem(ACTIVE_KEY) || ''; } catch (e) { return ''; }
+  }
+
+  function activePlayer() {
+    var id = activeId();
+    return id ? player(id) : null;
+  }
+
+  function setActive(id) {
+    try {
+      if (id) global.localStorage.setItem(ACTIVE_KEY, id);
+      else global.localStorage.removeItem(ACTIVE_KEY);
+    } catch (e) {}
+    store = null;   // force a reload from the new bucket
+    return activePlayer();
+  }
+
+  function bucketKey(id) { return 'kg.v2.' + id; }
+
+  // The old single-store progress becomes the first player's, once.
+  function migrateTo(id) {
+    var old;
+    try { old = global.localStorage.getItem(OLD_KEY); } catch (e) { return; }
+    if (!old) return;
+    try {
+      if (!global.localStorage.getItem(bucketKey(id))) {
+        global.localStorage.setItem(bucketKey(id), old);
+      }
+      global.localStorage.removeItem(OLD_KEY);
+    } catch (e) {}
+  }
+
+  function addPlayer(name, emoji) {
+    var list = players();
+    var clean = String(name || '').trim().slice(0, 14) || 'Player ' + (list.length + 1);
+    var id = 'p' + Date.now().toString(36) + Math.floor(Math.random() * 900 + 100);
+    list.push({ id: id, name: clean, emoji: emoji || '🐣' });
+    savePlayers(list);
+    migrateTo(id);
+    return id;
+  }
+
+  function updatePlayer(id, fields) {
+    var list = players();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id) {
+        if (fields.name !== undefined) list[i].name = String(fields.name).trim().slice(0, 14) || list[i].name;
+        if (fields.emoji !== undefined) list[i].emoji = fields.emoji;
+      }
+    }
+    savePlayers(list);
+  }
+
+  function removePlayer(id) {
+    var list = players().filter(function (p) { return p.id !== id; });
+    savePlayers(list);
+    try { global.localStorage.removeItem(bucketKey(id)); } catch (e) {}
+    if (activeId() === id) setActive(list.length ? list[0].id : '');
+    return list;
+  }
+
+  // ---- storage ------------------------------------------------------------
   function load() {
     if (store) return store;
-    try {
-      store = JSON.parse(global.localStorage.getItem(KEY));
-    } catch (e) {
-      store = null;
-    }
-    if (!store || typeof store !== 'object') store = { items: {}, decks: {} };
+    var id = activeId();
+    var parsed = id ? readJSON(bucketKey(id), null) : null;
+    store = (parsed && typeof parsed === 'object') ? parsed : { items: {}, decks: {} };
     if (!store.items) store.items = {};
     if (!store.decks) store.decks = {};
     return store;
   }
 
   function save() {
+    var id = activeId();
+    if (!id) return;   // nobody playing: nothing to write, and nothing to leak between kids
     try {
-      global.localStorage.setItem(KEY, JSON.stringify(load()));
+      global.localStorage.setItem(bucketKey(id), JSON.stringify(load()));
     } catch (e) {
       /* private mode / quota: games still work, progress just won't persist */
     }
@@ -206,6 +300,15 @@
 
   global.Learn = {
     MASTER_BOX: MASTER_BOX,
+    // players
+    players: players,
+    player: player,
+    activeId: activeId,
+    activePlayer: activePlayer,
+    setActive: setActive,
+    addPlayer: addPlayer,
+    updatePlayer: updatePlayer,
+    removePlayer: removePlayer,
     load: load,
     save: save,
     get: get,

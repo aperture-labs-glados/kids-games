@@ -3,8 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdf6ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kids Games">
 <title>Grown-up page — Kids Games</title>
-<link rel="stylesheet" href="shared/style.css?v=4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="shared/style.css?v=5">
+<style>
+  .players { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
+  .player-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 999px; min-height: 50px;
+    background: var(--card); border: 2px solid var(--line);
+    box-shadow: var(--shadow); font-weight: 800; font-size: 16px;
+  }
+  .player-chip .em { font-size: 20px; line-height: 1; }
+  .player-chip.on { border-color: var(--accent); background: var(--accent-soft); }
+  .manage { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 18px; }
+  .manage button {
+    font-size: 14px; font-weight: 700; padding: 9px 14px; min-height: auto;
+    border-radius: 12px; background: var(--card); border: 2px solid var(--line);
+    box-shadow: none; color: var(--ink);
+  }
+</style>
 </head>
 <body>
 <div class="bar">
@@ -13,9 +36,12 @@
 </div>
 
 <div class="wrap">
-  <p style="color:var(--ink-soft);font-size:15px;margin:14px 0">
+  <p style="color:var(--ink-soft);font-size:15px;margin:14px 0 8px">
     Saved on this device only. Nothing is sent anywhere.
   </p>
+
+  <div class="players" id="players"></div>
+  <div class="manage" id="manage"></div>
 
   <div id="decks"></div>
 
@@ -24,15 +50,21 @@
     <p>Play a game and this page fills in.</p>
   </div>
 
+  <div id="nobody" class="card hidden">
+    <h2>No players yet</h2>
+    <p>Add a name on the <a href="index.html">games page</a> first.</p>
+  </div>
+
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 30px">
     <button class="big-btn ghost" id="exportBtn" style="font-size:15px;min-height:auto;padding:12px 18px">Copy progress as JSON</button>
-    <button class="big-btn ghost" id="resetBtn" style="font-size:15px;min-height:auto;padding:12px 18px;color:var(--bad)">Reset all progress</button>
+    <button class="big-btn ghost" id="resetBtn" style="font-size:15px;min-height:auto;padding:12px 18px;color:var(--bad)">Reset this player</button>
   </div>
 </div>
 
-<script src="shared/learn.js?v=3"></script>
-<script src="shared/words.js?v=3"></script>
-<script src="shared/decks.js?v=3"></script>
+<script src="shared/learn.js?v=5"></script>
+<script src="shared/words.js?v=4"></script>
+<script src="shared/decks.js?v=5"></script>
+<script src="shared/pwa.js?v=1"></script>
 <script>
 (function () {
   var LABELS = {
@@ -65,8 +97,7 @@
       return f ? f.text.replace('?', f.answer) : item;
     }
     if (deck === 'rhyme') {
-      var r = Decks.rhyme.parse(item);
-      return r.word;
+      return Decks.rhyme.parse(item).word;
     }
     if (deck === 'arrays') {
       var a = Decks.arrays.parse(item);
@@ -81,13 +112,85 @@
     });
   }
 
-  function render() {
-    var host = document.getElementById('decks');
-    var decks = Learn.decks().filter(function (d) {
-      return Learn.stats(d, poolFor(d)).total > 0;
-    });
+  function renderPlayers() {
+    var host = document.getElementById('players');
+    var list = Learn.players();
+    var current = Learn.activePlayer();
     host.innerHTML = '';
-    document.getElementById('empty').classList.toggle('hidden', decks.length > 0);
+
+    list.forEach(function (p) {
+      var b = document.createElement('button');
+      b.className = 'player-chip' + (current && current.id === p.id ? ' on' : '');
+      var em = document.createElement('span');
+      em.className = 'em';
+      em.textContent = p.emoji;
+      var nm = document.createElement('span');
+      nm.textContent = p.name;
+      b.appendChild(em);
+      b.appendChild(nm);
+      b.addEventListener('click', function () {
+        Learn.setActive(p.id);
+        render();
+      });
+      host.appendChild(b);
+    });
+
+    var manage = document.getElementById('manage');
+    manage.innerHTML = '';
+    if (!current) return;
+
+    var rename = document.createElement('button');
+    rename.textContent = 'Rename ' + current.name;
+    rename.addEventListener('click', function () {
+      var name = window.prompt('Name for this player:', current.name);
+      if (name && name.trim()) {
+        Learn.updatePlayer(current.id, { name: name });
+        render();
+      }
+    });
+    manage.appendChild(rename);
+
+    var pic = document.createElement('button');
+    pic.textContent = 'Change picture';
+    pic.addEventListener('click', function () {
+      var pick = window.prompt('Emoji for ' + current.name + ':', current.emoji);
+      if (pick && pick.trim()) {
+        Learn.updatePlayer(current.id, { emoji: pick.trim().slice(0, 4) });
+        render();
+      }
+    });
+    manage.appendChild(pic);
+
+    var del = document.createElement('button');
+    del.textContent = 'Delete ' + current.name;
+    del.style.color = 'var(--bad)';
+    del.addEventListener('click', function () {
+      if (window.confirm('Delete ' + current.name + ' and all their progress? This cannot be undone.')) {
+        Learn.removePlayer(current.id);
+        render();
+      }
+    });
+    manage.appendChild(del);
+  }
+
+  function renderDecks() {
+    var host = document.getElementById('decks');
+    var current = Learn.activePlayer();
+    host.innerHTML = '';
+
+    document.getElementById('nobody').classList.toggle('hidden', !!current);
+    if (!current) {
+      document.getElementById('empty').classList.add('hidden');
+      return;
+    }
+
+    var decks = Object.keys(POOLS);
+    var touched = 0;
+    decks.forEach(function (d) {
+      var s = Learn.stats(d, poolFor(d));
+      if (s.learning + s.mastered > 0) touched += 1;
+    });
+    document.getElementById('empty').classList.toggle('hidden', touched > 0);
 
     decks.forEach(function (deck) {
       var s = Learn.stats(deck, poolFor(deck));
@@ -120,19 +223,30 @@
     });
   }
 
+  function render() {
+    renderPlayers();
+    renderDecks();
+  }
+
   document.getElementById('exportBtn').addEventListener('click', function () {
-    var text = JSON.stringify(Learn.load(), null, 2);
+    var current = Learn.activePlayer();
+    var text = JSON.stringify({
+      player: current ? current.name : null,
+      progress: Learn.load()
+    }, null, 2);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
-        this.textContent = 'Copied';
-      }.bind(this));
+        document.getElementById('exportBtn').textContent = 'Copied';
+      });
     } else {
       window.prompt('Copy this:', text);
     }
   });
 
   document.getElementById('resetBtn').addEventListener('click', function () {
-    if (window.confirm('Reset all progress on this device? This cannot be undone.')) {
+    var current = Learn.activePlayer();
+    if (!current) return;
+    if (window.confirm('Reset all progress for ' + current.name + '? This cannot be undone.')) {
       Learn.reset();
       render();
     }

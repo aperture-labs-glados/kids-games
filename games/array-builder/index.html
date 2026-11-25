@@ -4,8 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fdf6ee">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../../icons/icon-180.png">
+<link rel="icon" href="../../icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kids Games">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Array Builder — see the times table</title>
-<link rel="stylesheet" href="../../shared/style.css?v=4">
+<link rel="stylesheet" href="../../shared/style.css?v=5">
 </head>
 <body>
 
@@ -54,14 +60,19 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="../../shared/learn.js?v=4"></script>
+<script src="../../shared/learn.js?v=5"></script>
+<script src="../../shared/pwa.js?v=1"></script>
 <script src="../../shared/speech.js?v=6"></script>
-<script src="../../shared/decks.js?v=4"></script>
+<script src="../../shared/decks.js?v=5"></script>
 <script src="../../shared/confetti.js?v=8"></script>
 <script src="../../shared/sound.js?v=2"></script>
 <script>
 (function () {
   'use strict';
+
+  // no child selected: send them to the picker rather than silently writing
+  // one kid's answers into another kid's progress
+  if (!Learn.activePlayer()) { location.replace('../../index.html'); return; }
 
   var DECK = 'arrays';
   var LIMIT = 12;

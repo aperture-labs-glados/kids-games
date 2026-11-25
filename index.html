@@ -4,8 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fdf6ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kids Games">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Kids Games</title>
-<link rel="stylesheet" href="shared/style.css?v=4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="shared/style.css?v=5">
+<style>
+  .players { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .player-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 999px; min-height: 52px;
+    background: var(--card); border: 2px solid var(--line);
+    box-shadow: var(--shadow); font-weight: 800; font-size: 16px;
+  }
+  .player-chip .em { font-size: 22px; line-height: 1; }
+  .player-chip.on { border-color: var(--accent); background: var(--accent-soft); }
+  .player-chip.add { color: var(--ink-soft); }
+  .name-row { display: flex; gap: 10px; margin: 12px 0; }
+  .name-row input {
+    flex: 1; font: inherit; font-size: 18px; font-weight: 700;
+    padding: 12px 14px; border-radius: 14px;
+    border: 2px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  .name-row input:focus { outline: none; border-color: var(--accent); }
+  .emoji-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .emoji-pick {
+    width: 54px; height: 54px; font-size: 26px; border-radius: 14px;
+    background: var(--card); border: 2px solid var(--line); box-shadow: none;
+  }
+  .emoji-pick.on { border-color: var(--accent); background: var(--accent-soft); }
+</style>
 </head>
 <body>
 <div class="bar">
@@ -14,11 +45,30 @@
 </div>
 
 <div class="wrap">
-  <p style="color:var(--ink-soft);font-size:15px;margin:14px 0 4px">
+  <div class="players" id="players"></div>
+
+  <div id="setup" class="card hidden" style="margin:10px 0 16px">
+    <h2 id="setupTitle">Who is playing?</h2>
+    <p id="setupSub">Add a name for each child. Progress is kept separately, so nobody inherits anybody else's level.</p>
+    <div class="name-row">
+      <input id="nameInput" type="text" maxlength="14" placeholder="Name" autocapitalize="words" autocomplete="off">
+    </div>
+    <div class="emoji-row" id="emojiRow"></div>
+    <div style="display:flex;gap:10px">
+      <button class="big-btn primary" id="addBtn" style="flex:1">Add player</button>
+      <button class="big-btn ghost hidden" id="cancelBtn" style="font-size:16px">Cancel</button>
+    </div>
+  </div>
+
+  <p id="pickNote" class="hidden" style="color:var(--ink-soft);font-size:15px;margin:12px 0 4px">
+    Pick your name to start.
+  </p>
+
+  <p id="blurb" style="color:var(--ink-soft);font-size:15px;margin:14px 0 4px">
     Reading, spelling and numbers. No ads, no accounts, no timer.
   </p>
 
-  <div class="hub-grid">
+  <div class="hub-grid" id="grid">
     <a class="game-card" href="games/speak-build/index.html">
       <span class="emoji">🔤</span>
       <span class="name">Speak &amp; Build</span>
@@ -61,18 +111,134 @@
   </p>
 </div>
 
-<script src="shared/learn.js?v=2"></script>
+<script src="shared/learn.js?v=5"></script>
+<script src="shared/pwa.js?v=1"></script>
 <script>
 (function () {
-  var decks = Learn.decks();
-  var practiced = 0, mastered = 0;
-  decks.forEach(function (d) {
-    var s = Learn.stats(d, null);
-    practiced += s.mastered + s.learning;
-    mastered += s.mastered;
+  'use strict';
+
+  var EMOJI = ['🐣', '🦊', '🐻', '🐸', '🦄', '🐙'];
+  var el = function (id) { return document.getElementById(id); };
+  var picked = EMOJI[0];
+  var adding = false;
+
+  function active() { return Learn.activePlayer(); }
+
+  function updateBadge() {
+    var p = active();
+    var b = el('progressBadge');
+    if (!p) { b.textContent = 'no player'; return; }
+    var decks = Learn.decks();
+    var practiced = 0, mastered = 0;
+    decks.forEach(function (d) {
+      var s = Learn.stats(d, null);
+      practiced += s.mastered + s.learning;
+      mastered += s.mastered;
+    });
+    b.textContent = p.name + ' · ' + (practiced ? mastered + ' mastered' : 'new');
+  }
+
+  function renderPlayers() {
+    var host = el('players');
+    var list = Learn.players();
+    var current = active();
+    host.innerHTML = '';
+
+    list.forEach(function (p) {
+      var b = document.createElement('button');
+      b.className = 'player-chip' + (current && current.id === p.id ? ' on' : '');
+      var em = document.createElement('span');
+      em.className = 'em';
+      em.textContent = p.emoji;
+      var nm = document.createElement('span');
+      nm.textContent = p.name;
+      b.appendChild(em);
+      b.appendChild(nm);
+      b.addEventListener('click', function () {
+        Learn.setActive(p.id);
+        adding = false;
+        render();
+      });
+      host.appendChild(b);
+    });
+
+    if (list.length < 6) {
+      var add = document.createElement('button');
+      add.className = 'player-chip add';
+      var plus = document.createElement('span');
+      plus.className = 'em';
+      plus.textContent = '＋';
+      var lbl = document.createElement('span');
+      lbl.textContent = 'Add';
+      add.appendChild(plus);
+      add.appendChild(lbl);
+      add.addEventListener('click', function () {
+        adding = true;
+        render();
+      });
+      host.appendChild(add);
+    }
+  }
+
+  function renderEmoji() {
+    var host = el('emojiRow');
+    host.innerHTML = '';
+    EMOJI.forEach(function (e) {
+      var b = document.createElement('button');
+      b.className = 'emoji-pick' + (e === picked ? ' on' : '');
+      b.textContent = e;
+      b.addEventListener('click', function () {
+        picked = e;
+        renderEmoji();
+      });
+      host.appendChild(b);
+    });
+  }
+
+  function render() {
+    var list = Learn.players();
+    var current = active();
+
+    renderPlayers();
+    updateBadge();
+
+    var showSetup = list.length === 0 || adding;
+    el('setup').classList.toggle('hidden', !showSetup);
+    el('setupTitle').textContent = list.length === 0 ? 'Who is playing?' : 'Add another player';
+    el('cancelBtn').classList.toggle('hidden', list.length === 0);
+    el('grid').classList.toggle('hidden', !current || adding);
+    el('pickNote').classList.toggle('hidden', !!current || showSetup);
+    el('blurb').classList.toggle('hidden', !current);
+
+    if (showSetup) {
+      renderEmoji();
+      if (window.matchMedia && window.matchMedia('(hover: hover)').matches) {
+        el('nameInput').focus();
+      }
+    }
+  }
+
+  el('addBtn').addEventListener('click', function () {
+    var name = el('nameInput').value.trim();
+    if (!name) { el('nameInput').focus(); return; }
+    var id = Learn.addPlayer(name, picked);
+    Learn.setActive(id);
+    el('nameInput').value = '';
+    picked = EMOJI[Learn.players().length % EMOJI.length];
+    adding = false;
+    render();
   });
-  document.getElementById('progressBadge').textContent =
-    practiced ? mastered + ' mastered · ' + practiced + ' practiced' : 'nothing yet';
+
+  el('nameInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') el('addBtn').click();
+  });
+
+  el('cancelBtn').addEventListener('click', function () {
+    adding = false;
+    render();
+  });
+
+  render();
 })();
 </script>
 </body>

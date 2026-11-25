@@ -133,6 +133,23 @@ async def main():
 
         await asyncio.gather(*(one_phrase(kv) for kv in lines))
 
+    # the list shared/pwa.js warms into the cache; it must carry the same ?v=
+    # that speech.js appends, or offline playback misses
+    version = "2"
+    try:
+        speech = (ROOT / "shared" / "speech.js").read_text()
+        m = re.search(r"AUDIO_VERSION\s*=\s*(\d+)", speech)
+        if m:
+            version = m.group(1)
+    except OSError:
+        pass
+
+    files = []
+    for folder, prefix in ((OUT, "words"), (PHRASE_OUT, "phrases")):
+        for f in sorted(folder.glob("*.mp3")):
+            files.append(f"shared/audio/{prefix}/{f.name}?v={version}")
+    (OUT.parent / "manifest.json").write_text(json.dumps({"files": files}, indent=0) + "\n")
+
     meta = {
         "voice": args.voice,
         "rate": RATE,
@@ -142,6 +159,7 @@ async def main():
     }
     (OUT.parent / "voice.json").write_text(json.dumps(meta, indent=2) + "\n")
 
+    print(f"manifest: {len(files)} entries at ?v={version}")
     total = sum(p.stat().st_size for p in OUT.glob("*.mp3"))
     print(f"recorded {len(sizes)}, failed {len(failed)}, "
           f"{meta['count']} files, {total/1024:.0f} KB total")

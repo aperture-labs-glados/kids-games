@@ -11,6 +11,8 @@ vc.on('jsdomError', e => errors.push('jsdomError: ' + e.message));
 const stub = {
   beforeParse(window) {
     window.__spoken = [];
+    window.localStorage.setItem('kg.players', JSON.stringify([{ id: 'p1', name: 'Test', emoji: '🐣' }]));
+    window.localStorage.setItem('kg.active', 'p1');
     const voices = [{ name: 'Test Voice', lang: 'en-US', localService: true }];
     window.speechSynthesis = {
       getVoices: () => voices,
@@ -28,7 +30,7 @@ const stub = {
       };
     };
     window.SpeechSynthesisUtterance = function (t) { this.text = t; };
-    if (window.__seed) window.localStorage.setItem('kg.progress.v1', window.__seed);
+    if (window.__seed) window.localStorage.setItem('kg.v2.p1', window.__seed);
   }
 };
 
@@ -55,7 +57,7 @@ const stub = {
     click(doc1, word);
     await sleep(1300);
   }
-  const saved = w1.localStorage.getItem('kg.progress.v1');
+  const saved = w1.localStorage.getItem('kg.v2.p1');
   const level1 = JSON.parse(saved).decks.spell.level;
   const seen1 = Object.keys(JSON.parse(saved).items).length;
   console.log('session 1 -> level', level1, '| items touched', seen1);
@@ -69,21 +71,21 @@ const stub = {
   await new Promise(r => w2.addEventListener('load', r));
   await sleep(400);
   const badge = doc2.querySelector('#levelBadge').textContent;
-  const seeded = JSON.parse(w2.localStorage.getItem('kg.progress.v1')).decks.spell.level;
+  const seeded = JSON.parse(w2.localStorage.getItem('kg.v2.p1')).decks.spell.level;
   console.log('session 2 badge:', badge, '| restored level:', seeded, '| match:', seeded === level1);
 
   doc2.querySelector('#startBtn').click();
   await sleep(300);
   const firstWord = wordNow(w2);
-  const before = JSON.parse(w2.localStorage.getItem('kg.progress.v1')).items['spell::' + firstWord];
+  const before = JSON.parse(w2.localStorage.getItem('kg.v2.p1')).items['spell::' + firstWord];
   console.log('session 2 first word:', firstWord, '| seen before:', before ? before.seen : 0);
   click(doc2, firstWord);
   await sleep(1400);
-  const after = JSON.parse(w2.localStorage.getItem('kg.progress.v1')).items['spell::' + firstWord];
+  const after = JSON.parse(w2.localStorage.getItem('kg.v2.p1')).items['spell::' + firstWord];
   console.log('after one answer -> seen:', after.seen, 'box:', after.box, 'right:', after.right);
 
   // reviewed words should be served before brand-new ones
-  const store = JSON.parse(w2.localStorage.getItem('kg.progress.v1'));
+  const store = JSON.parse(w2.localStorage.getItem('kg.v2.p1'));
   const due = Object.values(store.items).filter(e => e.d === 'spell' && e.seen > 0 && e.due <= Date.now()).map(e => e.i);
   console.log('due reviews available:', due.length);
   console.log('errors:', errors.length ? errors : 'none');

@@ -11,6 +11,8 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
 const stubs = {
   beforeParse(window) {
     window.__spoken = [];
+    window.localStorage.setItem('kg.players', JSON.stringify([{ id: 'p1', name: 'Test', emoji: '🐣' }]));
+    window.localStorage.setItem('kg.active', 'p1');
     const voices = [{ name: 'Test Voice', lang: 'en-US', localService: true }];
     window.speechSynthesis = {
       getVoices: () => voices,
@@ -128,7 +130,7 @@ function solve(text) {
   console.log('title:', $('#sumTitle').textContent, '| sub:', $('#sumSub').textContent);
   console.log('right:', $('#sumRight').textContent, 'new:', $('#sumNew').textContent, 'miss:', $('#sumMiss').textContent);
   console.log('badge:', $('#levelBadge').textContent);
-  const store = JSON.parse(window.localStorage.getItem('kg.progress.v1'));
+  const store = JSON.parse(window.localStorage.getItem('kg.v2.p1'));
   console.log('facts items recorded:', Object.keys(store.items).filter(k => k.startsWith('facts::')).length);
   console.log('errors:', errors.length ? errors : 'none');
   process.exit(0);

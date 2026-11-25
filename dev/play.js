@@ -17,6 +17,8 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
     pretendToBeVisual: true,
     beforeParse(window) {
       window.__spoken = [];
+      window.localStorage.setItem('kg.players', JSON.stringify([{ id: 'p1', name: 'Test', emoji: '🐣' }]));
+      window.localStorage.setItem('kg.active', 'p1');
       const voices = [{ name: 'Test Voice', lang: 'en-US', localService: true }];
       window.speechSynthesis = {
         getVoices: () => voices,
@@ -153,10 +155,14 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
   console.log('dots:', Array.from(doc.querySelectorAll('#dots i')).map(d => d.className || 'fresh').join(','));
 
   // ---- grown-up page reads the same store ----
-  const saved = window.localStorage.getItem('kg.progress.v1');
+  const saved = window.localStorage.getItem('kg.v2.p1');
   const dom2 = await JSDOM.fromURL(BASE + '/grown-up.html', {
     runScripts: 'dangerously', resources: 'usable', virtualConsole: vc,
-    beforeParse(w) { w.localStorage.setItem('kg.progress.v1', saved); }
+    beforeParse(w) {
+      w.localStorage.setItem('kg.players', JSON.stringify([{ id: 'p1', name: 'Test', emoji: '🐣' }]));
+      w.localStorage.setItem('kg.active', 'p1');
+      w.localStorage.setItem('kg.v2.p1', saved);
+    }
   });
   await new Promise(r => dom2.window.addEventListener('load', r));
   await sleep(300);
