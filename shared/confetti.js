@@ -90,9 +90,9 @@
     for (var i = 0; i < count; i++) {
       parts.push(piece(
         Math.random() * v.w,
-        -30 - Math.random() * 120,
-        (Math.random() - 0.5) * 2.4,
-        1.2 + Math.random() * 2.6
+        -8 - Math.random() * 62,        // just above the edge, visible within a frame or two
+        (Math.random() - 0.5) * 2.2,
+        2.4 + Math.random() * 2.6
       ));
     }
   }
