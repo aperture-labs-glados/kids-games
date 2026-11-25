@@ -88,21 +88,38 @@
 
   // Play the recording. Returns true if it started; calls onFail otherwise
   // (missing file, decode error, autoplay block).
+  //
+  // A stale play() promise rejects with AbortError whenever the clip that
+  // started it gets paused by the next request. That is not a broken file, so
+  // it must not trigger the device voice - which is exactly the voice we are
+  // trying to avoid. A generation counter drops any superseded attempt.
+  var generation = 0;
+
   function playFile(w, onFail) {
     if (!global.Audio) return false;
     var a;
     try { a = element(urlFor(w)); } catch (e) { return false; }
 
+    var mine = ++generation;
     var settled = false;
-    function fail() { if (!settled) { settled = true; if (onFail) onFail(); } }
-    a.onerror = fail;
 
-    try { a.pause(); a.currentTime = 0; } catch (e) {}
+    function fail(reason) {
+      if (settled) return;
+      settled = true;
+      if (mine !== generation) return;      // a newer request owns the audio
+      if (reason && reason.name === 'AbortError') return;
+      if (onFail) onFail(reason);
+    }
+
+    a.onerror = function () { fail({ name: 'MediaError' }); };
+
+    try { a.pause(); } catch (e) {}
+    try { a.currentTime = 0; } catch (e) {}
     var p;
     try {
       p = a.play();
     } catch (e) {
-      fail();
+      fail(e);
       return false;
     }
     if (p && p.catch) p.catch(fail);
@@ -113,6 +130,7 @@
 
   // ---- browser voices -----------------------------------------------------
   function cancel() {
+    generation += 1;
     if (supported) { try { synth.cancel(); } catch (e) {} }
     var keys = Object.keys(audio);
     for (var i = 0; i < keys.length; i++) {
