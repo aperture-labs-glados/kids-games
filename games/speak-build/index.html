@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fdf6ee">
 <title>Speak &amp; Build — spell what you hear</title>
-<link rel="stylesheet" href="../../shared/style.css?v=1">
+<link rel="stylesheet" href="../../shared/style.css?v=2">
 </head>
 <body>
 
@@ -56,9 +56,10 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="../../shared/learn.js?v=1"></script>
-<script src="../../shared/speech.js?v=1"></script>
-<script src="../../shared/words.js?v=1"></script>
+<script src="../../shared/learn.js?v=2"></script>
+<script src="../../shared/speech.js?v=2"></script>
+<script src="../../shared/words.js?v=2"></script>
+<script src="../../shared/confetti.js?v=2"></script>
 <script>
 (function () {
   'use strict';
@@ -165,7 +166,8 @@
     el('hintBtn').disabled = false;
     el('hintBtn').classList.remove('hidden');
 
-    Speak.say(word, { rate: 0.82 });
+    Speak.preload(pool);
+    Speak.word(word);
     updateBadge();
   }
 
@@ -208,7 +210,8 @@
       });
       el('feedback').textContent = 'Yes! ' + word;
       el('feedback').className = 'feedback good';
-      Speak.say(word, { rate: 0.8 });
+      Confetti.burstFrom(el('slots'), 70);
+      Speak.word(word);
       if (up.changed) state.levelMoves += 1;
       if (up.changed > 0) toast('Level up! ' + Words.level(up.level).name);
       renderDots();
@@ -294,7 +297,7 @@
   });
 
   el('sayBtn').addEventListener('click', function () {
-    if (state.word) Speak.say(state.word, { rate: 0.82 });
+    if (state.word) Speak.word(state.word);
   });
 
   el('hintBtn').addEventListener('click', function () {
@@ -332,9 +335,11 @@
   // no voices at all (rare, but a locked-down browser does it): say so instead
   // of letting the kid sit there with silent buttons
   setTimeout(function () {
-    if (!Speak.hasVoice()) {
+    var first = Words.pool(Learn.level(DECK))[0];
+    Speak.preload([first]);
+    if (!Speak.hasVoice() && !Speak.hasRecording(first)) {
       el('gateNote').textContent =
-        'This browser has no speech voices, so the words cannot be read aloud. Try Safari or Chrome.';
+        'This browser cannot play the words aloud. Try Safari or Chrome.';
       el('startBtn').disabled = true;
     }
   }, 900);

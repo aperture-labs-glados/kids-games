@@ -17,6 +17,16 @@ const stub = {
       speak: u => { if (u && u.text) window.__spoken.push(String(u.text).trim()); },
       cancel: () => {}, addEventListener: () => {}
     };
+    // confetti is a no-op without a canvas backend
+    window.HTMLCanvasElement.prototype.getContext = function () { return null; };
+    window.Audio = function () {
+      return {
+        _src: '', preload: 'auto',
+        get src() { return this._src; }, set src(v) { this._src = v; },
+        play: function () { return Promise.reject(new Error('no media in jsdom')); },
+        pause: function () {}, load: function () {}, currentTime: 0, onerror: null
+      };
+    };
     window.SpeechSynthesisUtterance = function (t) { this.text = t; };
     if (window.__seed) window.localStorage.setItem('kg.progress.v1', window.__seed);
   }

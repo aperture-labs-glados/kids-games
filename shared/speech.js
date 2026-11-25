@@ -1,19 +1,34 @@
-/* speech.js — spoken prompts with no audio files.
- * Uses the browser's built-in voices. Two things break in practice:
- *  - iOS Safari ignores speak() unless the first call happens inside a tap,
- *    so games must call Speak.unlock() from their first click handler.
+/* speech.js — spoken prompts.
+ *
+ * Two sources, in order:
+ *  1. A pre-recorded mp3 under shared/audio/words/<word>.mp3. Neural voices,
+ *     recorded once at build time, identical on every device, and short words
+ *     are actually intelligible. This is the good path.
+ *  2. The browser's built-in voices, for anything without a file (sentences,
+ *     new word lists, a missing clip).
+ *
+ * Two browser quirks are handled here because they break games silently:
+ *  - iOS Safari ignores speak() and blocks play() unless the first call
+ *    happens inside a tap, so games call Speak.unlock() from their first click.
  *  - getVoices() is empty until the voiceschanged event fires.
- * If no voices exist at all, hasVoice() stays false and games fall back to
- * showing the word instead of hiding it behind audio.
  */
 (function (global) {
   'use strict';
 
+  var doc = global.document;
   var synth = global.speechSynthesis;
   var voices = [];
   var unlocked = false;
   var chosen = null;
   var supported = !!synth && typeof global.SpeechSynthesisUtterance === 'function';
+  var audio = {};   // url -> HTMLAudioElement
+
+  // shared/ is wherever this script lives, so games can sit at any depth.
+  var base = '';
+  try {
+    var self = doc && (doc.currentScript || doc.querySelector('script[src*="speech.js"]'));
+    if (self && self.src) base = self.src.replace(/speech\.js(\?[^/]*)?$/, '');
+  } catch (e) { base = ''; }
 
   var PREFERRED = [
     'samantha', 'karen', 'moira', 'tessa', 'google us english',
@@ -36,11 +51,7 @@
 
   function refresh() {
     if (!supported) return;
-    try {
-      voices = synth.getVoices() || [];
-    } catch (e) {
-      voices = [];
-    }
+    try { voices = synth.getVoices() || []; } catch (e) { voices = []; }
     pickVoice();
   }
 
@@ -53,26 +64,62 @@
     }
   }
 
-  // Call once, synchronously, from the first user tap. On iOS this is the
-  // difference between speech working and silently doing nothing.
-  function unlock() {
-    if (!supported || unlocked) return supported;
-    try {
-      var u = new global.SpeechSynthesisUtterance(' ');
-      u.volume = 0;
-      u.rate = 1;
-      synth.speak(u);
-      unlocked = true;
-    } catch (e) { /* fall through, hasVoice() guards the game */ }
-    refresh();
-    return supported;
+  // ---- recorded words -----------------------------------------------------
+  function urlFor(w) {
+    return base + 'audio/words/' + encodeURIComponent(String(w).toLowerCase()) + '.mp3';
   }
 
+  function element(url) {
+    if (audio[url]) return audio[url];
+    var a = new global.Audio();
+    a.preload = 'auto';
+    a.src = url;
+    audio[url] = a;
+    return a;
+  }
+
+  // Download the clips a session will need, so the first word is not silent
+  // while a 4 KB file is in flight.
+  function preload(words) {
+    (words || []).forEach(function (w) {
+      try { element(urlFor(w)).load(); } catch (e) {}
+    });
+  }
+
+  // Play the recording. Returns true if it started; calls onFail otherwise
+  // (missing file, decode error, autoplay block).
+  function playFile(w, onFail) {
+    if (!global.Audio) return false;
+    var a;
+    try { a = element(urlFor(w)); } catch (e) { return false; }
+
+    var settled = false;
+    function fail() { if (!settled) { settled = true; if (onFail) onFail(); } }
+    a.onerror = fail;
+
+    try { a.pause(); a.currentTime = 0; } catch (e) {}
+    var p;
+    try {
+      p = a.play();
+    } catch (e) {
+      fail();
+      return false;
+    }
+    if (p && p.catch) p.catch(fail);
+    return true;
+  }
+
+  function hasRecording(w) { return !!audio[urlFor(w)]; }
+
+  // ---- browser voices -----------------------------------------------------
   function cancel() {
     if (supported) { try { synth.cancel(); } catch (e) {} }
+    var keys = Object.keys(audio);
+    for (var i = 0; i < keys.length; i++) {
+      try { audio[keys[i]].pause(); } catch (e) {}
+    }
   }
 
-  // say(text, {rate, pitch}) -> true if it was handed to the browser.
   function say(text, opts) {
     if (!supported || !text) return false;
     opts = opts || {};
@@ -90,17 +137,52 @@
     }
   }
 
-  function spell(word, opts) {
-    if (!supported || !word) return false;
-    return say(String(word).split('').join(', '), opts || { rate: 0.8 });
+  // The word to spell: recording first, voice second.
+  function word(w, opts) {
+    if (!w) return false;
+    opts = opts || {};
+    cancel();
+    playFile(w, function () { say(w, { rate: opts.rate || 0.8 }); });
+    return true;
+  }
+
+  function spell(w, opts) {
+    return say(String(w || '').split('').join(', '), opts || { rate: 0.8 });
+  }
+
+  // Call once, synchronously, from the first user tap. iOS will not speak or
+  // play audio until a gesture has unlocked it.
+  function unlock() {
+    if (unlocked) return supported;
+    unlocked = true;
+    if (supported) {
+      try {
+        var u = new global.SpeechSynthesisUtterance(' ');
+        u.volume = 0;
+        synth.speak(u);
+      } catch (e) {}
+      refresh();
+    }
+    // A silent play() inside the gesture also unlocks HTMLAudio on iOS.
+    try {
+      var probe = new global.Audio();
+      probe.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiTi5DugBQAhQAAABAAEAAAA';
+      var p = probe.play();
+      if (p && p.catch) p.catch(function () {});
+    } catch (e) {}
+    return supported;
   }
 
   global.Speak = {
     unlock: unlock,
     say: say,
+    word: word,
     spell: spell,
     cancel: cancel,
+    preload: preload,
     refresh: refresh,
+    hasRecording: hasRecording,
+    base: function () { return base; },
     hasVoice: function () { return supported && voices.length > 0; },
     isSupported: function () { return supported; },
     voiceName: function () { return chosen ? chosen.name : ''; }

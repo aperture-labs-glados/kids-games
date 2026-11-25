@@ -24,6 +24,16 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
         cancel: () => {},
         addEventListener: () => {}
       };
+      // confetti is a no-op without a canvas backend
+      window.HTMLCanvasElement.prototype.getContext = function () { return null; };
+      window.Audio = function () {
+        return {
+          _src: '', preload: 'auto',
+          get src() { return this._src; }, set src(v) { this._src = v; },
+          play: function () { return Promise.reject(new Error('no media in jsdom')); },
+          pause: function () {}, load: function () {}, currentTime: 0, onerror: null
+        };
+      };
       window.SpeechSynthesisUtterance = function (t) {
         this.text = t; this.volume = 1; this.rate = 1; this.pitch = 1;
       };
