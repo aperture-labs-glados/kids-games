@@ -9,10 +9,10 @@ network calls. Progress lives in `localStorage` on the device.
 | Game | Skill | Status |
 |---|---|---|
 | Speak & Build | Spelling from speech, phonics levels 1-7 | live |
+| Ten-Frame Fill | Making 10 and 20 | live |
+| Fact Frenzy | Addition/subtraction to 20 | live |
 | Sight Word Splat | Dolch sight words | planned |
 | Rhyme & Swap | Word families | planned |
-| Ten-Frame Fill | Making 10 and 20 | planned |
-| Fact Frenzy | Addition/subtraction to 20 | planned |
 | Array Builder | Multiplication as area | planned |
 
 ## How the learning works
