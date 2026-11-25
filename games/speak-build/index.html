@@ -59,7 +59,8 @@
 <script src="../../shared/learn.js?v=2"></script>
 <script src="../../shared/speech.js?v=4"></script>
 <script src="../../shared/words.js?v=2"></script>
-<script src="../../shared/confetti.js?v=4"></script>
+<script src="../../shared/confetti.js?v=6"></script>
+<script src="../../shared/sound.js?v=1"></script>
 <script>
 (function () {
   'use strict';
@@ -210,12 +211,13 @@
       });
       el('feedback').textContent = 'Yes! ' + word;
       el('feedback').className = 'feedback good';
-      Confetti.burstFrom(el('slots'), 85);
+      Sound.fanfare();
+      Confetti.rain(95);
       Speak.word(word);
       if (up.changed) state.levelMoves += 1;
       if (up.changed > 0) toast('Level up! ' + Words.level(up.level).name);
       renderDots();
-      setTimeout(finishTurn, 1150);
+      setTimeout(finishTurn, 1500);
     } else {
       Learn.record(DECK, word, false);
       var down = Learn.adapt(DECK, false, MAX_LEVEL, { allowDown: state.levelMoves === 0 });
@@ -288,11 +290,13 @@
   // ---- wiring -------------------------------------------------------------
   el('startBtn').addEventListener('click', function () {
     Speak.unlock();
+    Sound.unlock();
     startSession();
   });
 
   el('againBtn').addEventListener('click', function () {
     Speak.unlock();
+    Sound.unlock();
     startSession();
   });
 

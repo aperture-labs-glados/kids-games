@@ -26,6 +26,23 @@ const stubs = {
         pause: function () {}, load: function () {}, currentTime: 0, onerror: null
       };
     };
+    // count fanfare notes instead of making sound
+    window.__osc = 0;
+    window.AudioContext = function () {
+    return {
+      currentTime: 0, state: 'running', destination: {},
+      createOscillator: function () {
+        return { type: '', frequency: { setValueAtTime: function () {} },
+          connect: function () {}, start: function () { window.__osc += 1; },
+          stop: function () {} };
+      },
+      createGain: function () {
+        return { gain: { setValueAtTime: function () {},
+          exponentialRampToValueAtTime: function () {} }, connect: function () {} };
+      },
+      resume: function () {}
+    };
+    };
     window.SpeechSynthesisUtterance = function (t) { this.text = t; };
   }
 };
@@ -72,6 +89,7 @@ function solve(text) {
   await sleep(150);
   console.log('equation now:', $('#equation').textContent, '| feedback:', $('#feedback').textContent);
   console.log('correct choice marked:', doc.querySelectorAll('#choices .choice.good').length);
+  console.log('fanfare notes played:', window.__osc, '(expect 5)');
   await sleep(1400);
 
   // ---- turn 2: hint + wrong answer ----

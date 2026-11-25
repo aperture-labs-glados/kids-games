@@ -57,7 +57,8 @@
 <script src="../../shared/learn.js?v=3"></script>
 <script src="../../shared/speech.js?v=5"></script>
 <script src="../../shared/decks.js?v=3"></script>
-<script src="../../shared/confetti.js?v=5"></script>
+<script src="../../shared/confetti.js?v=6"></script>
+<script src="../../shared/sound.js?v=1"></script>
 <script>
 (function () {
   'use strict';
@@ -221,7 +222,8 @@
       el('equation').textContent = q.text.replace('?', q.answer);
       el('feedback').textContent = 'Yes!';
       el('feedback').className = 'feedback good';
-      Confetti.burstFrom(el('equation'), 85);
+      Sound.fanfare();
+      Confetti.rain(95);
       if (move.changed > 0) toast('Now: ' + (LEVEL_NAMES[move.level] || ''));
     } else {
       btn.classList.add('bad');
@@ -238,7 +240,7 @@
 
     Array.prototype.forEach.call(el('choices').children, function (b) { b.disabled = true; });
     renderDots();
-    setTimeout(finishTurn, right ? 1200 : 2400);
+    setTimeout(finishTurn, right ? 1500 : 2400);
   }
 
   function finishTurn() {
@@ -287,11 +289,13 @@
   // ---- wiring -------------------------------------------------------------
   el('startBtn').addEventListener('click', function () {
     Speak.unlock();
+    Sound.unlock();
     startSession();
   });
 
   el('againBtn').addEventListener('click', function () {
     Speak.unlock();
+    Sound.unlock();
     startSession();
   });
 

@@ -34,6 +34,23 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
           pause: function () {}, load: function () {}, currentTime: 0, onerror: null
         };
       };
+    // count fanfare notes instead of making sound
+    window.__osc = 0;
+    window.AudioContext = function () {
+      return {
+        currentTime: 0, state: 'running', destination: {},
+        createOscillator: function () {
+          return { type: '', frequency: { setValueAtTime: function () {} },
+            connect: function () {}, start: function () { window.__osc += 1; },
+            stop: function () {} };
+        },
+        createGain: function () {
+          return { gain: { setValueAtTime: function () {},
+            exponentialRampToValueAtTime: function () {} }, connect: function () {} };
+        },
+        resume: function () {}
+      };
+    };
       window.SpeechSynthesisUtterance = function (t) {
         this.text = t; this.volume = 1; this.rate = 1; this.pitch = 1;
       };
@@ -90,7 +107,7 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
   console.log('feedback:', $('#feedback').textContent, '| class:', $('#feedback').className);
   const st1 = window.Learn.get('spell', word);
   console.log('recorded right:', st1.right, 'box:', st1.box);
-  await sleep(1400);
+  await sleep(1750);
 
   // ---- turn 2: get it wrong on purpose ----
   word = currentWord();
@@ -124,7 +141,7 @@ vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
     }
     turns++;
     await waitFor(() => /Yes!|spelled/.test($('#feedback').textContent), 'turn ' + turns, 5000);
-    await sleep(1350);
+    await sleep(1750);
   }
 
   await waitFor(() => !$('#summary').classList.contains('hidden'), 'summary', 9000);

@@ -26,6 +26,23 @@ const stubs = {
         pause: function () {}, load: function () {}, currentTime: 0, onerror: null
       };
     };
+    // count fanfare notes instead of making sound
+    window.__osc = 0;
+    window.AudioContext = function () {
+    return {
+      currentTime: 0, state: 'running', destination: {},
+      createOscillator: function () {
+        return { type: '', frequency: { setValueAtTime: function () {} },
+          connect: function () {}, start: function () { window.__osc += 1; },
+          stop: function () {} };
+      },
+      createGain: function () {
+        return { gain: { setValueAtTime: function () {},
+          exponentialRampToValueAtTime: function () {} }, connect: function () {} };
+      },
+      resume: function () {}
+    };
+    };
     window.SpeechSynthesisUtterance = function (t) { this.text = t; };
   }
 };
@@ -68,6 +85,8 @@ const stubs = {
   console.log('cells added after right:', doc.querySelectorAll('.cell.added').length);
   const st = window.Learn.get('tenframe', 't' + q.target + ':' + q.filled);
   console.log('recorded right:', st.right, 'box:', st.box);
+  console.log('fanfare notes played:', window.__osc, '(expect 5)');
+  console.log('confetti (no canvas in jsdom, real check is in the browser):', window.Confetti ? 'loaded' : 'missing');
   await sleep(1500);
 
   // ---- turn 2: wrong ----
