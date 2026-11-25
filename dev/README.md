@@ -18,6 +18,7 @@ node dev/persist.js        # level and item state survive a reload
 node dev/ten-frame.js      # maths: right, wrong reveal, fanfare notes, summary
 node dev/fact-frenzy.js    # maths: right, wrong, counter hint, summary
 node dev/later-games.js    # sight words, rhyme swap, array builder in one run
+node dev/profiles.js       # first-run setup, switching, isolation, migration, the guard
 node dev/confetti-test.js  # renders the canvas and measures where the paper is
 ```
 
