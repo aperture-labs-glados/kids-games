@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="shared/style.css?v=5">
+<link rel="stylesheet" href="shared/style.css?v=6">
 <style>
   .players { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
   .player-chip {
@@ -62,8 +62,8 @@
 </div>
 
 <script src="shared/learn.js?v=5"></script>
-<script src="shared/words.js?v=4"></script>
-<script src="shared/decks.js?v=5"></script>
+<script src="shared/words.js?v=5"></script>
+<script src="shared/decks.js?v=6"></script>
 <script src="shared/pwa.js?v=1"></script>
 <script>
 (function () {
@@ -73,7 +73,9 @@
     facts: 'Fact Frenzy (add and subtract)',
     sight: 'Sight Word Splat (reading)',
     rhyme: 'Rhyme & Swap (word families)',
-    arrays: 'Array Builder (times tables)'
+    arrays: 'Array Builder (times tables)',
+    numberline: 'Number Line (subtraction)',
+    read: 'Finish the Sentence (reading)'
   };
   // count against the whole curriculum, not just the items already in the store
   var POOLS = {
@@ -82,7 +84,9 @@
     facts: function () { return Decks.facts.all(); },
     sight: function () { return Decks.sight.all(); },
     rhyme: function () { return Decks.rhyme.all(); },
-    arrays: function () { return Decks.arrays.all(); }
+    arrays: function () { return Decks.arrays.all(); },
+    numberline: function () { return Decks.numberline.all(); },
+    read: function () { return Decks.read.all(); }
   };
   var poolFor = function (d) { return POOLS[d] ? POOLS[d]() : null; };
 
@@ -98,6 +102,14 @@
     }
     if (deck === 'rhyme') {
       return Decks.rhyme.parse(item).word;
+    }
+    if (deck === 'numberline') {
+      var nl = Decks.numberline.parse(item);
+      return nl ? nl.text.replace('?', nl.answer) : item;
+    }
+    if (deck === 'read') {
+      var rd = Decks.read.parse(item);
+      return rd ? rd.text.replace('___', rd.answer) : item;
     }
     if (deck === 'arrays') {
       var a = Decks.arrays.parse(item);

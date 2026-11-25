@@ -115,6 +115,59 @@
     return { rime: p[0] || '', word: word, answer: word.charAt(0) };
   }
 
+  // ---- number line --------------------------------------------------------
+  // Subtraction first, then bigger numbers, then a mix with addition so the
+  // child has to decide which way to travel.
+  function linePool(level) {
+    var out = [], a, b;
+    if (level <= 1) {
+      for (a = 5; a <= 10; a++) {
+        for (b = 1; b <= 5 && b <= a; b++) out.push(a + '-' + b);
+      }
+    } else if (level === 2) {
+      for (a = 11; a <= 20; a++) {
+        for (b = 1; b <= 9 && b < a; b++) out.push(a + '-' + b);
+      }
+    } else {
+      for (a = 6; a <= 15; a++) {
+        for (b = 2; b <= 9; b++) {
+          if (b < a) out.push(a + '-' + b);          // never below zero
+          if (a + b <= 20) out.push(a + '+' + b);    // never past the end
+        }
+      }
+    }
+    return out;
+  }
+
+  function parseLine(id) {
+    var m = /^(\d+)([+-])(\d+)$/.exec(String(id));
+    if (!m) return null;
+    var a = +m[1], b = +m[3], add = m[2] === '+';
+    return {
+      kind: add ? 'add' : 'sub',
+      a: a,
+      b: b,
+      answer: add ? a + b : a - b,
+      text: a + (add ? ' + ' : ' − ') + b + ' = ?'
+    };
+  }
+
+  // ---- finish the sentence ------------------------------------------------
+  function readPool(level) {
+    var all = (global.Words && global.Words.sentences) || [];
+    var half = Math.ceil(all.length / 2);
+    if (level >= 2) return all.map(function (_, i) { return 's' + i; });
+    return all.slice(0, half).map(function (_, i) { return 's' + i; });
+  }
+
+  function parseRead(id) {
+    var i = parseInt(String(id).slice(1), 10);
+    var all = (global.Words && global.Words.sentences) || [];
+    var s = all[i];
+    if (!s) return null;
+    return { index: i, text: s.text, answer: s.answer, wrong: s.wrong.slice(), all: all };
+  }
+
   // ---- multiplication arrays ---------------------------------------------
   var ARRAY_TABLES = [[2, 5, 10], [3, 4], [6, 7], [8, 9]];
 
@@ -177,6 +230,20 @@
       pool: rhymePool,
       all: function () { return union(rhymePool, RHYME_LEVELS.length); },
       parse: parseRhyme
+    },
+    numberline: {
+      label: 'Number Line',
+      maxLevel: 3,
+      pool: linePool,
+      all: function () { return union(linePool, 3); },
+      parse: parseLine
+    },
+    read: {
+      label: 'Finish the Sentence',
+      maxLevel: 2,
+      pool: readPool,
+      all: function () { return union(readPool, 2); },
+      parse: parseRead
     },
     arrays: {
       label: 'Array Builder',

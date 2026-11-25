@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdf6ee">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kids Games">
+<title>Stickers — Kids Games</title>
+<link rel="stylesheet" href="shared/style.css?v=6">
+</head>
+<body>
+<div class="bar">
+  <a class="back" href="index.html" aria-label="Back">‹</a>
+  <span class="title">Stickers</span>
+  <span class="badge" id="count">0 of 11</span>
+</div>
+
+<div class="wrap">
+  <p id="who" style="color:var(--ink-soft);font-size:15px;margin:14px 0 8px"></p>
+
+  <div class="sticker-grid" id="grid"></div>
+
+  <div id="nobody" class="card hidden">
+    <h2>No players yet</h2>
+    <p>Add a name on the <a href="index.html">games page</a> first.</p>
+  </div>
+
+  <p style="margin-top:auto;font-size:13px;color:var(--ink-soft);padding:18px 0">
+    <a href="index.html">Back to the games</a>
+  </p>
+</div>
+
+<script src="shared/learn.js?v=5"></script>
+<script src="shared/stickers.js?v=1"></script>
+<script src="shared/pwa.js?v=1"></script>
+<script>
+(function () {
+  'use strict';
+
+  var el = function (id) { return document.getElementById(id); };
+  var player = Learn.activePlayer();
+
+  if (!player) {
+    el('nobody').classList.remove('hidden');
+    el('who').classList.add('hidden');
+    el('count').textContent = 'no player';
+    return;
+  }
+
+  var stickers = Stickers.list();
+  var earned = stickers.filter(function (s) { return s.earned; }).length;
+  var fresh = stickers.filter(function (s) { return s.fresh; }).length;
+
+  el('count').textContent = earned + ' of ' + stickers.length;
+  el('who').textContent = player.emoji + ' ' + player.name +
+    (fresh ? ' · ' + fresh + ' new!' : '');
+
+  var host = el('grid');
+  stickers.forEach(function (s) {
+    var d = document.createElement('div');
+    d.className = 'sticker' + (s.earned ? ' earned' : ' locked');
+
+    var em = document.createElement('span');
+    em.className = 'art';
+    em.textContent = s.earned ? s.emoji : '·';
+    var label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = s.earned ? s.label : s.hint;
+
+    d.appendChild(em);
+    d.appendChild(label);
+
+    if (s.fresh) {
+      var badge = document.createElement('span');
+      badge.className = 'new';
+      badge.textContent = 'NEW';
+      d.appendChild(badge);
+    }
+    host.appendChild(d);
+  });
+
+  // they have now seen the shelf
+  setTimeout(function () { Stickers.markSeen(); }, 600);
+})();
+</script>
+</body>
+</html>

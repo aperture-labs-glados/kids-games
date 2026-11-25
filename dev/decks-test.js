@@ -70,6 +70,44 @@ for (let level = 1; level <= 5; level++) {
 console.log('  questions that cannot make four choices:', thin);
 if (thin) bad(thin + ' questions cannot fill the answer grid');
 
+console.log('number line');
+for (let level = 1; level <= D.numberline.maxLevel; level++) {
+  const pool = D.numberline.pool(level);
+  pool.forEach(id => {
+    const q = D.numberline.parse(id);
+    if (!q) return bad(`unparseable ${id}`);
+    if (!q.text.includes('?')) bad(`${id} has no blank`);
+    if (q.answer < 0 || q.answer > 20) bad(`${id} answer ${q.answer} off the line`);
+    if (q.kind === 'sub' && q.a - q.b !== q.answer) bad(`${id} wrong difference`);
+    if (q.kind === 'add' && q.a + q.b !== q.answer) bad(`${id} wrong sum`);
+    if (q.a > 20) bad(`${id} starts past the end of the line`);
+  });
+  const kinds = new Set(pool.map(id => D.numberline.parse(id).kind));
+  console.log(`  level ${level}: ${pool.length} items, kinds ${[...kinds].join('+')}`);
+  if (!pool.length) bad('number line level ' + level + ' is empty');
+}
+
+console.log('finish the sentence');
+[1, 2].forEach(level => {
+  const pool = D.read.pool(level);
+  console.log(`  set ${level}: ${pool.length} sentences`);
+  pool.forEach(id => {
+    const q = D.read.parse(id);
+    if (!q) return bad(`unparseable ${id}`);
+    if (q.text.indexOf('___') === -1) bad(`${id} has no blank`);
+    if (!q.answer) bad(`${id} has no answer`);
+    if (q.wrong.length < 3) bad(`${id} needs three wrong options`);
+    [q.answer].concat(q.wrong).forEach(w => {
+      if (!CLIPS.has(w)) bad(`${id} uses "${w}" which has no recording`);
+    });
+    const n = q.index + 1;
+    const clip = `sentence-${n < 10 ? '0' + n : n}`;
+    if (!fs.existsSync('/opt/data/kids-games/shared/audio/phrases/' + clip + '.mp3')) {
+      bad(`${id} has no sentence recording (${clip})`);
+    }
+  });
+});
+
 console.log('sight words');
 [[1, 50], [2, 40]].forEach(([level, count]) => {
   const pool = D.sight.pool(level);

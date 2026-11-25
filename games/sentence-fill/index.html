@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdf6ee">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../../icons/icon-180.png">
+<link rel="icon" href="../../icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kids Games">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Finish the Sentence — read and choose</title>
+<link rel="stylesheet" href="../../shared/style.css?v=6">
+</head>
+<body>
+
+<div class="bar">
+  <a class="back" href="../../index.html" aria-label="Back to games">‹</a>
+  <span class="title">Finish the Sentence</span>
+  <span class="badge" id="levelBadge">Set 1</span>
+</div>
+
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+
+  <div id="gate" class="card" style="margin-top:24px;text-align:center">
+    <h2>Read it, then finish it</h2>
+    <p>Listen to the sentence, read the words, and tap the one that fits.</p>
+    <button class="big-btn primary" id="startBtn" style="width:100%;margin-top:10px">Start</button>
+  </div>
+
+  <main id="game" class="hidden">
+    <div class="say-row">
+      <button class="say-btn" id="sayBtn" aria-label="Hear the sentence again">🔊</button>
+    </div>
+    <div class="say-note">tap a word to hear it</div>
+
+    <div class="sentence" id="sentence"></div>
+
+    <div class="feedback" id="feedback"></div>
+    <div class="choices two words" id="choices"></div>
+  </main>
+
+  <div id="summary" class="card hidden" style="margin-top:24px;text-align:center">
+    <h2 id="sumTitle">Nice work</h2>
+    <p id="sumSub"></p>
+    <div class="stat-row">
+      <div class="stat"><b id="sumRight">0</b><span>right</span></div>
+      <div class="stat"><b id="sumNew">0</b><span>new</span></div>
+      <div class="stat"><b id="sumMiss">0</b><span>to practice</span></div>
+    </div>
+    <button class="big-btn primary" id="againBtn" style="width:100%">Play again</button>
+    <p style="margin-top:16px"><a href="../../index.html">Back to the games</a></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../shared/learn.js?v=5"></script>
+<script src="../../shared/pwa.js?v=1"></script>
+<script src="../../shared/speech.js?v=6"></script>
+<script src="../../shared/words.js?v=5"></script>
+<script src="../../shared/decks.js?v=6"></script>
+<script src="../../shared/confetti.js?v=8"></script>
+<script src="../../shared/sound.js?v=2"></script>
+<script>
+(function () {
+  'use strict';
+
+  // no child selected: send them to the picker rather than silently writing
+  // one kid's answers into another kid's progress
+  if (!Learn.activePlayer()) { location.replace('../../index.html'); return; }
+
+  var DECK = 'read';
+  var LIMIT = 12;
+  var MAX_LEVEL = Decks.read.maxLevel;
+
+  var el = function (id) { return document.getElementById(id); };
+  var state = {
+    session: null,
+    item: null,
+    q: null,
+    locked: true,
+    levelMoves: 0,
+    retry: [],
+    recent: []
+  };
+
+  function toast(msg) {
+    var t = el('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.classList.remove('show'); }, 1600);
+  }
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function renderDots() {
+    var box = el('dots');
+    box.innerHTML = '';
+    for (var i = 0; i < LIMIT; i++) {
+      var d = document.createElement('i');
+      var r = state.session && state.session.results ? state.session.results[i] : null;
+      if (r === true) d.className = 'good';
+      else if (r === false) d.className = 'bad';
+      box.appendChild(d);
+    }
+  }
+
+  function updateBadge() {
+    el('levelBadge').textContent = 'Set ' + Learn.level(DECK);
+  }
+
+  // sentences are recorded as phrase clips: sentence-01 ... sentence-20
+  function clipFor(index) {
+    var n = index + 1;
+    return 'sentence-' + (n < 10 ? '0' + n : n);
+  }
+
+  function nextItem() {
+    var pool = Decks.read.pool(Learn.level(DECK));
+    var id;
+
+    if (state.retry.length) {
+      id = state.retry.shift();
+    } else {
+      var picked = Learn.pick(DECK, pool, state.recent.slice(-2));
+      id = picked;
+    }
+    if (!id) id = pool[0];
+
+    var q = Decks.read.parse(id);
+    state.item = id;
+    state.q = q;
+    state.locked = false;
+
+    state.recent.push(id);
+    if (state.recent.length > 4) state.recent.shift();
+
+    el('feedback').textContent = '';
+    el('feedback').className = 'feedback';
+
+    drawSentence(q);
+    drawChoices(q);
+    updateBadge();
+
+    Speak.phrase(clipFor(q.index));
+  }
+
+  function drawSentence(q, filled) {
+    var host = el('sentence');
+    host.innerHTML = '';
+
+    q.text.split(' ').forEach(function (word) {
+      if (word.indexOf('___') === 0) {
+        var slot = document.createElement('span');
+        slot.className = 'blank-slot' + (filled ? ' filled' : '');
+        slot.textContent = filled || '?';
+        host.appendChild(slot);
+        return;
+      }
+
+      // tap any word to hear it, so a stuck reader is not stuck
+      var b = document.createElement('button');
+      b.className = 'word-btn';
+      b.textContent = word;
+      var clean = word.toLowerCase().replace(/[^a-z]/g, '');
+      b.addEventListener('click', function () {
+        if (clean) Speak.word(clean);
+      });
+      host.appendChild(b);
+    });
+  }
+
+  function drawChoices(q) {
+    var host = el('choices');
+    host.innerHTML = '';
+    var options = shuffle([q.answer].concat(q.wrong));
+    options.forEach(function (w) {
+      var b = document.createElement('button');
+      b.className = 'choice word';
+      b.textContent = w;
+      b.addEventListener('click', function () { answerWith(b, w); });
+      host.appendChild(b);
+    });
+  }
+
+  function answerWith(btn, w) {
+    if (state.locked || !state.item) return;
+    state.locked = true;
+
+    var q = state.q;
+    var right = (w === q.answer);
+    var wasNew = Learn.get(DECK, state.item).seen === 0;
+
+    Learn.record(DECK, state.item, right);
+    var move = Learn.adapt(DECK, right, MAX_LEVEL, {
+      allowUp: state.levelMoves === 0,
+      allowDown: state.levelMoves === 0
+    });
+    if (move.changed) state.levelMoves += 1;
+    state.session.track(state.item, right, wasNew);
+
+    if (right) {
+      btn.classList.add('good', 'pop');
+      drawSentence(q, q.answer);
+      el('feedback').textContent = 'Yes! ' + q.answer;
+      el('feedback').className = 'feedback good';
+      Sound.fanfare();
+      Confetti.rain(95);
+      setTimeout(function () { Speak.phrase(clipFor(q.index)); }, 380);
+      if (move.changed > 0) toast('Set ' + move.level);
+    } else {
+      btn.classList.add('bad');
+      Array.prototype.forEach.call(el('choices').children, function (b) {
+        if (b.textContent === q.answer) b.classList.add('good');
+      });
+      drawSentence(q, q.answer);
+      el('feedback').textContent = 'It is ' + q.answer;
+      el('feedback').className = 'feedback bad';
+      Speak.phrase(clipFor(q.index));
+      if (state.retry.indexOf(state.item) === -1) state.retry.push(state.item);
+      if (move.changed < 0) toast('Back to set ' + move.level);
+    }
+
+    Array.prototype.forEach.call(el('choices').children, function (b) { b.disabled = true; });
+    renderDots();
+    setTimeout(finishTurn, right ? 1900 : 2800);
+  }
+
+  function finishTurn() {
+    if (state.session.done()) { showSummary(); return; }
+    nextItem();
+  }
+
+  function showSummary() {
+    var s = state.session;
+    el('game').classList.add('hidden');
+    el('dots').classList.add('hidden');
+    el('summary').classList.remove('hidden');
+
+    var pct = s.answered ? Math.round((s.correct / s.answered) * 100) : 0;
+    el('sumTitle').textContent = pct >= 80 ? 'Excellent' : pct >= 50 ? 'Good work' : 'Good try';
+    el('sumSub').textContent = s.missed.length
+      ? s.missed.length + ' to read again'
+      : 'Every one right. Well done.';
+    el('sumRight').textContent = s.correct;
+    el('sumNew').textContent = s.newItems.length;
+    el('sumMiss').textContent = s.missed.length;
+  }
+
+  function startSession() {
+    state.session = new Learn.Session({ limit: LIMIT });
+    state.session.results = [];
+    state.retry = [];
+    state.recent = [];
+    state.levelMoves = 0;
+
+    var track = state.session.track.bind(state.session);
+    state.session.track = function (item, correct, wasNew) {
+      state.session.results[state.session.answered] = correct;
+      track(item, correct, wasNew);
+    };
+
+    el('gate').classList.add('hidden');
+    el('summary').classList.add('hidden');
+    el('game').classList.remove('hidden');
+    el('dots').classList.remove('hidden');
+    renderDots();
+    nextItem();
+  }
+
+  el('startBtn').addEventListener('click', function () {
+    Speak.unlock();
+    Sound.unlock();
+    startSession();
+  });
+
+  el('againBtn').addEventListener('click', function () {
+    Speak.unlock();
+    Sound.unlock();
+    startSession();
+  });
+
+  el('sayBtn').addEventListener('click', function () {
+    if (state.q) Speak.phrase(clipFor(state.q.index));
+  });
+
+  renderDots();
+  updateBadge();
+})();
+</script>
+</body>
+</html>

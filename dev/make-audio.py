@@ -49,6 +49,18 @@ FILTER = (
 )
 
 
+def sentences_from_js(path):
+    """The reading game's sentences, spoken in full with the blank filled in."""
+    src = path.read_text()
+    block = re.search(r"SENTENCES\s*=\s*\[(.*?)\n  \];", src, re.S)
+    if not block:
+        return []
+    out = []
+    for text, answer in re.findall(r"text:\s*'([^']*)',\s*answer:\s*'([^']*)'", block.group(1)):
+        out.append((text.replace('___', answer), answer))
+    return out
+
+
 def words_from_js(path):
     """Pull every word straight out of words.js so the clips cannot drift."""
     src = path.read_text()
@@ -59,6 +71,11 @@ def words_from_js(path):
 
     for block in re.findall(r"(?:primer|first):\s*\[(.*?)\]", src, re.S):
         found += re.findall(r"'([a-z]+)'", block)
+
+    # words only the sentences use
+    extras = re.search(r"EXTRAS\s*=\s*\[(.*?)\];", src, re.S)
+    if extras:
+        found += re.findall(r"'([a-z]{3,})'", extras.group(1))
 
     # rhyming family words; the two-letter rime keys are skipped by the {3,}
     fam = re.search(r"FAMILIES\s*=\s*\{(.*?)\n  \};", src, re.S)
@@ -123,6 +140,12 @@ async def main():
         # fixed phrases for the maths games
         PHRASE_OUT.mkdir(parents=True, exist_ok=True)
         lines = list(PHRASES.items())
+
+        # and the reading game's sentences: sentence-01 ... sentence-NN
+        for i, (text, _answer) in enumerate(sentences_from_js(WORDS_JS)):
+            n = i + 1
+            lines.append(('sentence-' + ('0' + str(n) if n < 10 else str(n)), text))
+
         if args.limit:
             lines = lines[:1]
         async def one_phrase(pair):

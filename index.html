@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="shared/style.css?v=5">
+<link rel="stylesheet" href="shared/style.css?v=6">
 <style>
   .players { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 6px; }
   .player-chip {
@@ -104,6 +104,24 @@
       <span class="name">Array Builder</span>
       <span class="sub">See the times table as a grid of dots.</span>
     </a>
+
+    <a class="game-card" href="games/number-line/index.html">
+      <span class="emoji">📏</span>
+      <span class="name">Number Line</span>
+      <span class="sub">Hop back to take away. Up to 20.</span>
+    </a>
+
+    <a class="game-card" href="games/sentence-fill/index.html">
+      <span class="emoji">📖</span>
+      <span class="name">Finish the Sentence</span>
+      <span class="sub">Read it, tap a word, choose the missing one.</span>
+    </a>
+
+    <a class="game-card" href="stickers.html" id="stickerCard">
+      <span class="emoji">🏅</span>
+      <span class="name">Stickers</span>
+      <span class="sub" id="stickerSub">Your shelf</span>
+    </a>
   </div>
 
   <p style="margin-top:auto;font-size:13px;color:var(--ink-soft);padding:12px 0">
@@ -113,6 +131,7 @@
 
 <script src="shared/learn.js?v=5"></script>
 <script src="shared/pwa.js?v=1"></script>
+<script src="shared/stickers.js?v=1"></script>
 <script>
 (function () {
   'use strict';
@@ -136,6 +155,16 @@
       mastered += s.mastered;
     });
     b.textContent = p.name + ' · ' + (practiced ? mastered + ' mastered' : 'new');
+  }
+
+  function updateStickers() {
+    var sub = document.getElementById('stickerSub');
+    if (!sub) return;
+    if (!active()) { sub.textContent = 'Your shelf'; return; }
+    var c = Stickers.count();
+    sub.textContent = c.fresh
+      ? c.fresh + ' new sticker' + (c.fresh > 1 ? 's' : '') + '!'
+      : c.earned + ' of ' + c.total + ' earned';
   }
 
   function renderPlayers() {
@@ -201,6 +230,7 @@
 
     renderPlayers();
     updateBadge();
+    updateStickers();
 
     var showSetup = list.length === 0 || adding;
     el('setup').classList.toggle('hidden', !showSetup);

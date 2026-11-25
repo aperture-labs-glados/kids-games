@@ -74,7 +74,40 @@
     ut: ['but', 'cut', 'hut', 'nut', 'put', 'rut']
   };
 
+  // Finish-the-sentence: the blank is always a word we have a recording for,
+  // and the wrong options come from the same vocabulary so every choice is
+  // readable. Each full sentence is recorded too, so the prompt is spoken.
+  var SENTENCES = [
+    { text: 'The cat sat on the ___.', answer: 'mat', wrong: ['sun', 'cup', 'log'] },
+    { text: 'The dog can ___.', answer: 'run', wrong: ['red', 'ten', 'top'] },
+    { text: 'I can see a big ___.', answer: 'bug', wrong: ['net', 'pen', 'jam'] },
+    { text: 'The sun is ___.', answer: 'hot', wrong: ['wet', 'big', 'red'] },
+    { text: 'A hen is in the ___.', answer: 'pen', wrong: ['bike', 'cake', 'rope'] },
+    { text: 'We can run and ___.', answer: 'hop', wrong: ['note', 'five', 'time'] },
+    { text: 'The pig is in the ___.', answer: 'mud', wrong: ['cake', 'sock', 'game'] },
+    { text: 'My hat is ___.', answer: 'red', wrong: ['thin', 'five', 'some'] },
+    { text: 'The fox is in the ___.', answer: 'box', wrong: ['bike', 'rope', 'line'] },
+    { text: 'I have a red ___.', answer: 'cap', wrong: ['note', 'time', 'cube'] },
+    { text: 'The bug is on the ___.', answer: 'rug', wrong: ['cake', 'five', 'line'] },
+    { text: 'We can see the ___.', answer: 'ship', wrong: ['jam', 'ten', 'pen'] },
+    { text: 'The fish is in the ___.', answer: 'net', wrong: ['cake', 'home', 'time'] },
+    { text: 'This is my ___.', answer: 'bike', wrong: ['jam', 'sun', 'bug'] },
+    { text: 'The ring is in the ___.', answer: 'box', wrong: ['sun', 'net', 'jam'] },
+    { text: 'I can chat with ___.', answer: 'them', wrong: ['cake', 'five', 'rope'] },
+    { text: 'The sock is on the ___.', answer: 'bed', wrong: ['net', 'jam', 'sun'] },
+    { text: 'We can play a ___.', answer: 'game', wrong: ['ten', 'bug', 'net'] },
+    { text: 'I like to ___.', answer: 'hop', wrong: ['cake', 'five', 'sock'] },
+    { text: 'Here is the ___.', answer: 'rope', wrong: ['bug', 'red', 'ten'] }
+  ];
+
+  // Words no game pool contains but the sentences use, so the recorder picks
+  // them up and a stuck reader can still tap them.
+  var EXTRAS = ['wet', 'box', 'hot', 'top', 'cap', 'mud', 'bed', 'them', 'cube',
+    'plate', 'ring', 'hen', 'fin', 'log', 'chip'];
+
   global.Words = {
+    extras: EXTRAS,
+    sentences: SENTENCES,
     families: FAMILIES,
     familyNames: Object.keys(FAMILIES),
     levels: LEVELS,
